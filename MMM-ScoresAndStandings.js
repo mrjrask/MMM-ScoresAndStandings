@@ -423,7 +423,18 @@
           var index = r * this._scoreboardColumns + c;
           var game = games[index];
           if (game) {
-            cell.appendChild(this.createGameBox(game));
+            var card = this.createGameBox(game);
+            if (card) {
+              cell.appendChild(card);
+
+              for (var cl = 0; cl < card.classList.length; cl++) {
+                var cls = card.classList[cl];
+                if (cls && cls.indexOf("league-") === 0) {
+                  cell.classList.add(cls);
+                  break;
+                }
+              }
+            }
           } else {
             cell.classList.add("empty");
           }
