@@ -217,24 +217,15 @@
 
 .scoreboard-card.league-nfl .scoreboard-header,
 .scoreboard-card.league-nfl .scoreboard-row {
-  justify-items: center;
+  justify-items: stretch;
 }
 
 .scoreboard-card.league-nfl .scoreboard-status {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: calc(var(--scoreboard-gap) * 0.5);
   width: 100%;
-}
-
-.scoreboard-card.league-nfl .scoreboard-team-total-label {
-  margin-left: auto;
-  font-size: var(--scoreboard-label-font);
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--scoreboard-muted);
-  font-weight: 600;
 }
 
 .scoreboard-card.league-nfl .scoreboard-team {
@@ -245,10 +236,6 @@
 .scoreboard-card.league-nfl .scoreboard-header .scoreboard-status,
 .scoreboard-card.league-nfl .scoreboard-row .scoreboard-team {
   justify-self: start;
-}
-
-.scoreboard-card.league-nfl .scoreboard-row .scoreboard-value {
-  font-size: calc(var(--scoreboard-value-font) * 0.7);
 }
 
 .font-times-square .scoreboard-card .scoreboard-status,

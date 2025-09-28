@@ -858,8 +858,6 @@
           }
         }
 
-        var metrics = quarters.slice();
-
         var totalScore = scoreNum;
         if (totalScore == null) {
           var runningTotal = 0;
@@ -896,7 +894,7 @@
           logoAbbr: abbr,
           highlight: highlight,
           isLoser: isLoser,
-          metrics: metrics,
+          metrics: [],
           total: totalScore,
           totalPlaceholder: isPreview ? "" : "—"
         });
@@ -909,10 +907,9 @@
         live: isLive,
         showValues: showVals,
         statusText: statusText,
-        metricLabels: ["Q1", "Q2", "Q3", "Q4"],
+        metricLabels: [],
         rows: rows,
-        cardClasses: cardClasses,
-        teamTotalLabel: "TOT"
+        cardClasses: cardClasses
       });
     },
 
