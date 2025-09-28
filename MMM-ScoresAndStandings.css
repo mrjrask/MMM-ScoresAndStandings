@@ -166,12 +166,13 @@
   flex-direction: column;
   font-family: var(--scoreboard-font-family);
   color: var(--scoreboard-text);
+  --metric-count: 3;
 }
 
 .scoreboard-card .scoreboard-header,
 .scoreboard-card .scoreboard-row {
   display: grid;
-  grid-template-columns: 1fr repeat(3, var(--scoreboard-metric-width));
+  grid-template-columns: 1fr repeat(var(--metric-count), var(--scoreboard-metric-width));
   align-items: center;
   column-gap: var(--scoreboard-gap);
 }
