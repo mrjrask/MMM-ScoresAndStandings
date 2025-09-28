@@ -8,7 +8,8 @@
   --box-scale: 1;
 
   /* ===== Scoreboard ===== */
-  --scoreboard-card-width-base:      160px;
+  --scoreboard-card-width-base:      320px;
+  --scoreboard-card-width-base-nfl:  200px;
   --scoreboard-pad-block-base:         9px;
   --scoreboard-pad-inline-base:       14px;
   --scoreboard-gap-base:               8px;
@@ -87,6 +88,10 @@
   width: var(--scoreboard-card-width);
 }
 
+.games-matrix-cell.league-nfl {
+  --scoreboard-card-width-base: var(--scoreboard-card-width-base-nfl);
+}
+
 .games-matrix-cell.empty::before {
   content: "";
   display: inline-block;
@@ -125,6 +130,10 @@
   font-family: var(--scoreboard-font-family);
   color: var(--scoreboard-text);
   --metric-count: 3;
+}
+
+.scoreboard-card.league-nfl {
+  --scoreboard-card-width-base: var(--scoreboard-card-width-base-nfl);
 }
 
 .scoreboard-card .scoreboard-header,
