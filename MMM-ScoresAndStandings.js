@@ -1,4 +1,4 @@
-/* MMM-MLBScoresAndStandings.js */
+/* MMM-ScoresAndStandings.js */
 /* global Module */
 
 (function () {
@@ -37,7 +37,7 @@
     "NL": "NL Wild Card", "AL": "AL Wild Card"
   };
 
-  Module.register("MMM-MLBScoresAndStandings", {
+  Module.register("MMM-ScoresAndStandings", {
     defaults: {
       updateIntervalScores:            60 * 1000,
       updateIntervalStandings:       15 * 60 * 1000,
@@ -80,7 +80,7 @@
     },
 
     getStyles: function () {
-      return ["MMM-MLBScoresAndStandings.css"];
+      return ["MMM-ScoresAndStandings.css"];
     },
 
     start: function () {
@@ -223,7 +223,7 @@
           this.updateDom();
         }
       } catch (e) {
-        console.error("MMM-MLBScoresAndStandings: socket handler error", e);
+        console.error("MMM-ScoresAndStandings: socket handler error", e);
       }
     },
 
@@ -265,7 +265,7 @@
       try {
         wrapper.appendChild(showingGames ? this._buildGames() : this._buildStandings());
       } catch (e) {
-        console.error("MMM-MLBScoresAndStandings: getDom build error", e);
+        console.error("MMM-ScoresAndStandings: getDom build error", e);
         return this._noData("Error building view.");
       }
       return wrapper;

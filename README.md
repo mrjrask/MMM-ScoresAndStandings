@@ -1,4 +1,4 @@
-# MMM-MLBScoresAndStandings
+# MMM-ScoresAndStandings
 
 A sleek MLB scoreboard + standings module for [MagicMirror²](https://magicmirror.builders) that now supports NHL and NFL scoreboards.
 It rotates between game scoreboards and standings (division pairs and wild cards), supports team highlighting, compact layouts, and highly tunable fonts/sizing via CSS variables.
@@ -60,8 +60,8 @@ Rotation timing for each screen is configurable.
 
 ```bash
 cd ~/MagicMirror/modules
-git clone https://github.com/yourname/MMM-MLBScoresAndStandings.git
-cd MMM-MLBScoresAndStandings
+git clone https://github.com/yourname/MMM-ScoresAndStandings.git
+cd MMM-ScoresAndStandings
 # No npm install required (uses global.fetch from Node 18+)
 ```
 
@@ -77,7 +77,7 @@ Add to your `config/config.js`:
 
 ```js
 {
-  module: "MMM-MLBScoresAndStandings",
+  module: "MMM-ScoresAndStandings",
   position: "middle_center", // or wherever you prefer
   config: {
     // Refresh
@@ -132,10 +132,10 @@ Add to your `config/config.js`:
 ## Images & Fonts
 
 ```
-MMM-MLBScoresAndStandings/
-├─ MMM-MLBScoresAndStandings.js
+MMM-ScoresAndStandings/
+├─ MMM-ScoresAndStandings.js
 ├─ node_helper.js
-├─ MMM-MLBScoresAndStandings.css
+├─ MMM-ScoresAndStandings.css
 ├─ fonts/
 │  └─ TimesSquare-m105.ttf
 └─ images/
@@ -154,7 +154,7 @@ MMM-MLBScoresAndStandings/
 
 ## Styling & CSS Variables
 
-Most sizing is controlled by CSS variables in `MMM-MLBScoresAndStandings.css`.
+Most sizing is controlled by CSS variables in `MMM-ScoresAndStandings.css`.
 You now have two ways to rein in the layout when it feels oversized:
 
 1. **Quick fix** – use the `layoutScale` config option (or override `--box-scale`) to shrink or enlarge everything uniformly.
@@ -193,7 +193,7 @@ Example override (drop into your `css/custom.css`):
 **Header font switched to Times Square**  
 Remove any global rules like:
 ```css
-.module.MMM-MLBScoresAndStandings * { font-family: 'Times Square' !important; }
+.module.MMM-ScoresAndStandings * { font-family: 'Times Square' !important; }
 ```
 and use the header override shown above.
 
