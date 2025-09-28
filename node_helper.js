@@ -13,20 +13,9 @@ module.exports = NodeHelper.create({
       this.league = this._getLeague();
 
       this._fetchGames();
-      if (this.league === "mlb") {
-        this._fetchStandings();
-      } else {
-        // Immediately clear out any previous standings on the front-end
-        this.sendSocketNotification("STANDINGS", []);
-      }
 
       const scoreInterval = Math.max(10 * 1000, this.config.updateIntervalScores || (60 * 1000));
       setInterval(() => this._fetchGames(), scoreInterval);
-
-      if (this.league === "mlb") {
-        const standInterval = Math.max(60 * 1000, this.config.updateIntervalStandings || (15 * 60 * 1000));
-        setInterval(() => this._fetchStandings(), standInterval);
-      }
     }
   },
 
@@ -35,47 +24,6 @@ module.exports = NodeHelper.create({
     if (league === "nhl") return this._fetchNhlGames();
     if (league === "nfl") return this._fetchNflGames();
     return this._fetchMlbGames();
-  },
-
-  async _fetchStandings() {
-    if (this._getLeague() !== "mlb") return;
-
-    try {
-      const season = new Date().getFullYear();
-
-      // 1) Regular division records (NL + AL)
-      const [nlRes, alRes] = await Promise.all([
-        fetch(`https://statsapi.mlb.com/api/v1/standings?season=${season}&leagueId=104`),
-        fetch(`https://statsapi.mlb.com/api/v1/standings?season=${season}&leagueId=103`)
-      ]);
-      const [nlJson, alJson] = await Promise.all([nlRes.json(), alRes.json()]);
-      const regular = [
-        ...(nlJson.records || []),
-        ...(alJson.records || [])
-      ];
-      // Sort by numeric division ID
-      regular.sort((a, b) => a.division.id - b.division.id);
-
-      // 2) Wild Card standings (league-wide)
-      const [nlWCRes, alWCRes] = await Promise.all([
-        fetch(`https://statsapi.mlb.com/api/v1/standings?season=${season}&leagueId=104&standingsTypes=wildCard`),
-        fetch(`https://statsapi.mlb.com/api/v1/standings?season=${season}&leagueId=103&standingsTypes=wildCard`)
-      ]);
-      const [nlWCJson, alWCJson] = await Promise.all([nlWCRes.json(), alWCRes.json()]);
-      const nlWCRecs = nlWCJson.records?.[0]?.teamRecords || [];
-      const alWCRecs = alWCJson.records?.[0]?.teamRecords || [];
-
-      // Append as pseudo-records for NL & AL Wild Card
-      regular.push(
-        { division: { id: "NL", name: "NL Wild Card" }, teamRecords: nlWCRecs },
-        { division: { id: "AL", name: "AL Wild Card" }, teamRecords: alWCRecs }
-      );
-
-      console.log(`📊 Sending ${regular.length} division standings to front-end.`);
-      this.sendSocketNotification("STANDINGS", regular);
-    } catch (e) {
-      console.error("🚨 fetchStandings failed:", e);
-    }
   },
 
   async _fetchMlbGames() {
