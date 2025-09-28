@@ -65,7 +65,7 @@ Add to your `config/config.js`:
     league: "mlb",             // "mlb", "nhl", "nfl", array of leagues, or "all"
 
     // Scoreboard layout
-    scoreboardColumns: 2,     // number of columns of game boxes per page
+    scoreboardColumns: null,  // columns per page (auto: 2 for MLB/NHL, 4 for NFL)
     gamesPerColumn: 2,        // games stacked in each column
     // (optional) gamesPerPage: 8, // override derived columns × gamesPerColumn
     layoutScale: 0.9,          // shrink (<1) or grow (>1) everything at once (clamped 0.6 – 1.4)
@@ -90,7 +90,7 @@ Add to your `config/config.js`:
 - **Header width** matches `maxWidth` and stays in the default MM font (Roboto Condensed).
 - **Highlighted teams** accept a single string `"CUBS"` or an array like `["CUBS","NYY"]` for the league-specific settings `highlightedTeams_mlb`, `highlightedTeams_nhl`, and `highlightedTeams_nfl`.
 - **layoutScale** is the quickest way to fix oversize boxes—values below `1` compact the layout.
-- The default scoreboard layout shows **two columns and up to four games** at a time. Adjust `scoreboardColumns`, `gamesPerColumn`, or `gamesPerPage` to taste.
+- The default scoreboard layout shows **two columns and up to four games** for MLB/NHL, and **four columns** for NFL. Adjust `scoreboardColumns`, `gamesPerColumn`, or `gamesPerPage` to taste.
 
 ---
 

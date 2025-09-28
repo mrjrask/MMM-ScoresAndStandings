@@ -19,6 +19,7 @@
 
   // Scoreboard layout defaults (can be overridden via config)
   var DEFAULT_SCOREBOARD_COLUMNS    = 2;
+  var DEFAULT_SCOREBOARD_COLUMNS_NFL = 4;
   var DEFAULT_GAMES_PER_COLUMN      = 2;
 
   var SUPPORTED_LEAGUES = ["mlb", "nhl", "nfl"];
@@ -26,7 +27,7 @@
   Module.register("MMM-ScoresAndStandings", {
     defaults: {
       updateIntervalScores:            60 * 1000,
-      scoreboardColumns:               DEFAULT_SCOREBOARD_COLUMNS,
+      scoreboardColumns:               null,
       gamesPerColumn:                  DEFAULT_GAMES_PER_COLUMN,
       gamesPerPage:                      null,
       league:                        "mlb",
@@ -72,7 +73,7 @@
       }
       this._activeLeagueIndex = 0;
 
-      this._scoreboardColumns = DEFAULT_SCOREBOARD_COLUMNS;
+      this._scoreboardColumns = this._defaultColumnsForLeague();
       this._scoreboardRows    = DEFAULT_GAMES_PER_COLUMN;
       this._gamesPerPage      = this._scoreboardColumns * this._scoreboardRows;
       this._layoutScale       = 1;
@@ -217,8 +218,14 @@
       return finite && num > 0 ? num : fallback;
     },
 
+    _defaultColumnsForLeague: function () {
+      var league = this._getLeague();
+      if (league === "nfl") return DEFAULT_SCOREBOARD_COLUMNS_NFL;
+      return DEFAULT_SCOREBOARD_COLUMNS;
+    },
+
     _syncScoreboardLayout: function () {
-      var columns   = this._asPositiveInt(this.config.scoreboardColumns, DEFAULT_SCOREBOARD_COLUMNS);
+      var columns   = this._asPositiveInt(this.config.scoreboardColumns, this._defaultColumnsForLeague());
       var perColumn = this._asPositiveInt(this.config.gamesPerColumn, DEFAULT_GAMES_PER_COLUMN);
 
       var gamesPerPage = columns * perColumn;
