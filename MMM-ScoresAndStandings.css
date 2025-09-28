@@ -12,10 +12,10 @@
   --scoreboard-pad-block-base:        10px;
   --scoreboard-pad-inline-base:       14px;
   --scoreboard-gap-base:               8px;
-  --scoreboard-status-font-base:      18px;
+  --scoreboard-status-font-base:      calc(18px + 2pt);
   --scoreboard-label-font-base:       12px;
   --scoreboard-team-font-base:        28px;
-  --scoreboard-value-font-base:       32px;
+  --scoreboard-value-font-base:       calc(32px + 4pt);
   --scoreboard-metric-width-base:     56px;
   --scoreboard-placeholder-height-base: 184px;
 
