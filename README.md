@@ -100,7 +100,9 @@ Add to your `config/config.js`:
 
     // Behavior
     timeZone: "America/Chicago",
-    highlightedTeams: ["CUBS"], // string or array of 3–5 letter abbrs
+    highlightedTeams_mlb: ["CUBS"], // string or array of 3–5 letter abbrs (per league)
+    highlightedTeams_nhl: [],
+    highlightedTeams_nfl: [],
     showTitle: true,
     useTimesSquareFont: true,   // set false to use the MagicMirror default font
 
@@ -118,7 +120,9 @@ Add to your `config/config.js`:
 **Notes**
 - **League**: set `league` to `"nhl"` or `"nfl"` for hockey or football scoreboards (standings are MLB-only).
 - **Header width** matches `maxWidth` and stays in the default MM font (Roboto Condensed).
-- **Highlighted teams** accept a single string `"CUBS"` or an array like `["CUBS","NYY"]`.
+- **Highlighted teams** accept a single string `"CUBS"` or an array like `["CUBS","NYY"]` for
+  the league-specific settings `highlightedTeams_mlb`, `highlightedTeams_nhl`, and
+  `highlightedTeams_nfl`.
 - **layoutScale** is the quickest way to fix oversize boxes—values below `1` compact the layout.
 - When both standings views are enabled the rotation order is *Scoreboard → (NL/AL East) →
   (NL/AL Central) → (NL/AL West) → NL WC → AL WC*. Pages you disable are skipped entirely.
