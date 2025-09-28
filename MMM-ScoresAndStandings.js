@@ -471,6 +471,12 @@
       var statusEl = document.createElement("div");
       statusEl.className = "scoreboard-status" + (live ? " live" : "");
       statusEl.textContent = (config && config.statusText) ? config.statusText : "";
+      if (config && config.teamTotalLabel) {
+        var totalLabelEl = document.createElement("span");
+        totalLabelEl.className = "scoreboard-team-total-label";
+        totalLabelEl.textContent = config.teamTotalLabel;
+        statusEl.appendChild(totalLabelEl);
+      }
       header.appendChild(statusEl);
 
       for (var li = 0; li < metricLabels.length; li++) {
@@ -520,6 +526,22 @@
         team.appendChild(abbrEl);
 
         if (rowData.highlight) team.classList.add("team-highlight");
+
+        if (Object.prototype.hasOwnProperty.call(rowData, "total") || Object.prototype.hasOwnProperty.call(rowData, "totalPlaceholder")) {
+          var totalEl = document.createElement("span");
+          totalEl.className = "scoreboard-team-total";
+          var totalPlaceholder = (rowData.totalPlaceholder != null) ? rowData.totalPlaceholder : "—";
+          if (showVals) {
+            if (rowData.total == null || rowData.total === "") {
+              totalEl.textContent = "";
+            } else {
+              totalEl.textContent = String(rowData.total);
+            }
+          } else {
+            totalEl.textContent = totalPlaceholder;
+          }
+          team.appendChild(totalEl);
+        }
         row.appendChild(team);
 
         var metrics = Array.isArray(rowData.metrics) ? rowData.metrics : [];
@@ -837,7 +859,24 @@
         }
 
         var metrics = quarters.slice();
-        metrics.push(scoreNum);
+
+        var totalScore = scoreNum;
+        if (totalScore == null) {
+          var runningTotal = 0;
+          var haveQuarterScore = false;
+          for (var qIdx = 0; qIdx < quarters.length; qIdx++) {
+            var quarterVal = quarters[qIdx];
+            if (quarterVal == null || quarterVal === "") continue;
+            var numericQuarter = Number(quarterVal);
+            if (!isNaN(numericQuarter)) {
+              runningTotal += numericQuarter;
+              haveQuarterScore = true;
+            }
+          }
+          if (haveQuarterScore) {
+            totalScore = runningTotal;
+          }
+        }
 
         var otherScore = null;
         if (idx === 0 && home) {
@@ -857,7 +896,9 @@
           logoAbbr: abbr,
           highlight: highlight,
           isLoser: isLoser,
-          metrics: metrics
+          metrics: metrics,
+          total: totalScore,
+          totalPlaceholder: isPreview ? "" : "—"
         });
       }
 
@@ -868,9 +909,10 @@
         live: isLive,
         showValues: showVals,
         statusText: statusText,
-        metricLabels: ["Q1", "Q2", "Q3", "Q4", "TOT"],
+        metricLabels: ["Q1", "Q2", "Q3", "Q4"],
         rows: rows,
-        cardClasses: cardClasses
+        cardClasses: cardClasses,
+        teamTotalLabel: "TOT"
       });
     },
 
