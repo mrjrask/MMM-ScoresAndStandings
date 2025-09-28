@@ -62,7 +62,7 @@ Add to your `config/config.js`:
     // Refresh
     updateIntervalScores: 60 * 1000,
 
-    league: "mlb",             // "mlb", "nhl", or "nfl"
+    league: "mlb",             // "mlb", "nhl", "nfl", array of leagues, or "all"
 
     // Scoreboard layout
     scoreboardColumns: 2,     // number of columns of game boxes per page
@@ -86,7 +86,7 @@ Add to your `config/config.js`:
 ```
 
 **Notes**
-- **League**: set `league` to `"nhl"` or `"nfl"` for hockey or football scoreboards.
+- **League**: set `league` to `"nhl"` or `"nfl"` for hockey or football scoreboards. Use `"all"` (or provide an array via `league` or `leagues`) to rotate through every supported league automatically.
 - **Header width** matches `maxWidth` and stays in the default MM font (Roboto Condensed).
 - **Highlighted teams** accept a single string `"CUBS"` or an array like `["CUBS","NYY"]` for the league-specific settings `highlightedTeams_mlb`, `highlightedTeams_nhl`, and `highlightedTeams_nfl`.
 - **layoutScale** is the quickest way to fix oversize boxes—values below `1` compact the layout.

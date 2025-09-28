@@ -9,15 +9,15 @@
 
   /* ===== Scoreboard ===== */
   --scoreboard-card-width-base:      320px;
-  --scoreboard-pad-block-base:        10px;
+  --scoreboard-pad-block-base:         9px;
   --scoreboard-pad-inline-base:       14px;
   --scoreboard-gap-base:               8px;
-  --scoreboard-status-font-base:      calc(18px + 2pt);
+  --scoreboard-status-font-base:      18px;
   --scoreboard-label-font-base:       12px;
   --scoreboard-team-font-base:        28px;
-  --scoreboard-value-font-base:       calc(32px + 4pt);
+  --scoreboard-value-font-base:       32px;
   --scoreboard-metric-width-base:     56px;
-  --scoreboard-placeholder-height-base: 184px;
+  --scoreboard-placeholder-height-base: calc(184px * 0.9);
 
   --scoreboard-card-width:    calc(var(--scoreboard-card-width-base) * var(--box-scale));
   --scoreboard-pad-block:     calc(var(--scoreboard-pad-block-base) * var(--box-scale));
@@ -205,6 +205,13 @@
   color: var(--scoreboard-value-color);
   line-height: 1;
   font-weight: 700;
+}
+
+.font-times-square .scoreboard-card .scoreboard-status,
+.font-times-square .scoreboard-card .scoreboard-label,
+.font-times-square .scoreboard-card .scoreboard-team-abbr,
+.font-times-square .scoreboard-card .scoreboard-value {
+  font-weight: 400;
 }
 
 .scoreboard-card.is-live {
