@@ -1,6 +1,6 @@
 # MMM-MLBScoresAndStandings
 
-A sleek MLB scoreboard + standings module for [MagicMirror²](https://magicmirror.builders).  
+A sleek MLB scoreboard + standings module for [MagicMirror²](https://magicmirror.builders) that now supports NHL and NFL scoreboards.
 It rotates between game scoreboards and standings (division pairs and wild cards), supports team highlighting, compact layouts, and highly tunable fonts/sizing via CSS variables.
 
 > ✅ **Works great in `middle_center`** thanks to a width cap.  
@@ -17,7 +17,7 @@ It rotates between game scoreboards and standings (division pairs and wild cards
 - [Screens](#screens)
 - [Installation](#installation)
 - [Configuration](#configuration)
-- [Logos & Fonts](#logos--fonts)
+- [Images & Fonts](#images--fonts)
 - [Styling & CSS Variables](#styling--css-variables)
 - [Troubleshooting](#troubleshooting)
 - [FAQ](#faq)
@@ -28,6 +28,7 @@ It rotates between game scoreboards and standings (division pairs and wild cards
 ## Features
 
 - **Scoreboard** uses a fixed 4 × 3 grid (12 slots) per page.
+- **Multi-league support**: MLB (scoreboard + standings), NHL (goals & shots on goal), NFL (quarter-by-quarter with totals).
 - **Standings** cycle: NL/AL East, NL/AL Central, NL/AL West, NL Wild Card, AL Wild Card.
 - **Wild Card**: division leaders are excluded; WCGB computed vs. the 3rd WC team.
 - **“GB / WCGB / E#”**: `0` rendered as `--`; half-games show as `1/2` in smaller type.
@@ -66,7 +67,7 @@ cd MMM-MLBScoresAndStandings
 
 > **Node Requirement:** Node **18+** (for built-in `fetch`). If you must run older Node, install `node-fetch@3` and adapt `node_helper.js` accordingly.
 
-Place your team **logos** and the **Times Square** font as described below.
+Place your team **images** and the **Times Square** font as described below.
 
 ---
 
@@ -83,11 +84,12 @@ Add to your `config/config.js`:
     updateIntervalScores: 60 * 1000,
     updateIntervalStandings: 15 * 60 * 1000,
 
+    league: "mlb",             // "mlb", "nhl", or "nfl"
+
     // Scoreboard layout
     scoreboardColumns: 2,     // number of columns of game boxes per page
     gamesPerColumn: 2,        // games stacked in each column
     // (optional) gamesPerPage: 8, // override derived columns × gamesPerColumn
-    logoType: "color",         // folder under ./logos/ e.g. logos/color/ATL.png
     layoutScale: 0.9,          // shrink (<1) or grow (>1) everything at once (clamped 0.6 – 1.4)
     rotateIntervalScores: 15 * 1000,
 
@@ -114,6 +116,7 @@ Add to your `config/config.js`:
 ```
 
 **Notes**
+- **League**: set `league` to `"nhl"` or `"nfl"` for hockey or football scoreboards (standings are MLB-only).
 - **Header width** matches `maxWidth` and stays in the default MM font (Roboto Condensed).
 - **Highlighted teams** accept a single string `"CUBS"` or an array like `["CUBS","NYY"]`.
 - **layoutScale** is the quickest way to fix oversize boxes—values below `1` compact the layout.
@@ -126,7 +129,7 @@ Add to your `config/config.js`:
 
 ---
 
-## Logos & Fonts
+## Images & Fonts
 
 ```
 MMM-MLBScoresAndStandings/
@@ -135,15 +138,16 @@ MMM-MLBScoresAndStandings/
 ├─ MMM-MLBScoresAndStandings.css
 ├─ fonts/
 │  └─ TimesSquare-m105.ttf
-└─ logos/
-   └─ color/
-      ├─ ATL.png
-      ├─ CUBS.png
-      ├─ LAD.png
-      └─ ... one file per team abbr ...
+└─ images/
+   ├─ mlb/
+   │  └─ ATL.png (etc.)
+   ├─ nhl/
+   │  └─ BOS.png (etc.)
+   └─ nfl/
+      └─ kc.png (etc., lowercase filenames)
 ```
 
-- **Logos**: PNGs named by **abbr** (e.g., `CUBS.png`) under `logos/<logoType>/`.
+- **Images**: PNGs named by **abbr** (e.g., `CUBS.png`, `NYR.png`, `kc.png`) under `images/<league>/`.
 - **Font**: `fonts/TimesSquare-m105.ttf` is loaded by `@font-face` inside the module CSS.
 
 ---
