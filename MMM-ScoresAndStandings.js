@@ -51,7 +51,9 @@
       rotateIntervalCentral:          12 * 1000,
       rotateIntervalWest:              7 * 1000,
       timeZone:               "America/Chicago",
-      highlightedTeams:                 [],
+      highlightedTeams_mlb:             [],
+      highlightedTeams_nhl:             [],
+      highlightedTeams_nfl:             [],
       showTitle:                        true,
       useTimesSquareFont:               true,
 
@@ -126,6 +128,13 @@
     _getLeague: function () {
       var league = this.config && this.config.league ? this.config.league : "mlb";
       return String(league).trim().toLowerCase();
+    },
+
+    _getHighlightedTeamsConfig: function () {
+      var league = this._getLeague();
+      if (league === "nhl") return this.config.highlightedTeams_nhl;
+      if (league === "nfl") return this.config.highlightedTeams_nfl;
+      return this.config.highlightedTeams_mlb;
     },
 
     _injectHeaderWidthStyle: function () {
@@ -1175,9 +1184,25 @@
     },
 
     _isHighlighted: function (abbr) {
-      var h = this.config.highlightedTeams;
-      if (Array.isArray(h)) return h.indexOf(abbr) !== -1;
-      if (typeof h === "string") return h.toUpperCase() === String(abbr).toUpperCase();
+      var h = this._getHighlightedTeamsConfig();
+
+      // Backwards compatibility for legacy `highlightedTeams`
+      if ((h == null || (Array.isArray(h) && h.length === 0)) && this.config.highlightedTeams != null) {
+        h = this.config.highlightedTeams;
+      }
+
+      if (Array.isArray(h)) {
+        var upper = String(abbr || "").toUpperCase();
+        for (var i = 0; i < h.length; i++) {
+          if (String(h[i] || "").toUpperCase() === upper) return true;
+        }
+        return false;
+      }
+
+      if (typeof h === "string") {
+        return String(h).toUpperCase() === String(abbr || "").toUpperCase();
+      }
+
       return false;
     },
 
