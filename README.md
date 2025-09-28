@@ -1,20 +1,17 @@
 # MMM-ScoresAndStandings
 
-A sleek MLB scoreboard + standings module for [MagicMirror²](https://magicmirror.builders) that now supports NHL and NFL scoreboards.
-It rotates between game scoreboards and standings (division pairs and wild cards), supports team highlighting, compact layouts, and highly tunable fonts/sizing via CSS variables.
+A sleek multi-league scoreboard module for [MagicMirror²](https://magicmirror.builders). It renders MLB, NHL, and NFL scoreboards with configurable layouts, team highlighting, and an optional Times Square–style font.
 
-> ✅ **Works great in `middle_center`** thanks to a width cap.  
-> ✅ **Wild Card** tables auto-computed from division feeds.  
-> ✅ **Statuses**: `Final`, `Final/11` (extras), `Postponed`, `Suspended`, `Warmup`, **Live** yellow R/ H/ E.  
-> ✅ **Optional Home/Away** splits in standings.  
-> ✅ **Times Square** font for a ballpark look — header stays in MagicMirror’s default font.
+> ✅ **Works great in `middle_center`** thanks to a configurable width cap.
+> ✅ **MLB / NHL / NFL** scoreboards share one layout with configurable columns and rows.
+> ✅ **Statuses**: `Final`, `Final/11` (extras), `Postponed`, `Suspended`, `Warmup`, and live inning/period clocks.
+> ✅ **Times Square** font for the scoreboard body — the header stays in MagicMirror’s default font.
 
 ---
 
 ## Table of Contents
 
 - [Features](#features)
-- [Screens](#screens)
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Images & Fonts](#images--fonts)
@@ -27,32 +24,14 @@ It rotates between game scoreboards and standings (division pairs and wild cards
 
 ## Features
 
-- **Scoreboard** uses a fixed 4 × 3 grid (12 slots) per page.
-- **Multi-league support**: MLB (scoreboard + standings), NHL (goals & shots on goal), NFL (quarter-by-quarter with totals).
-- **Standings** cycle: NL/AL East, NL/AL Central, NL/AL West, NL Wild Card, AL Wild Card.
-- **Wild Card**: division leaders are excluded; WCGB computed vs. the 3rd WC team.
-- **“GB / WCGB / E#”**: `0` rendered as `--`; half-games show as `1/2` in smaller type.
-- **Team highlighting**: show your favorites in accent color.
-- **Width cap**: keep the module tidy in `middle_center`.
-- **layoutScale** option: shrink or enlarge the entire layout without touching CSS.
-- **Optional splits**: show/hide `Home`/`Away` with a single flag.
-- **Status text**: `Final` (or `Final/##`), `Warmup`, `Postponed`, `Suspended`, **live** innings with yellow R/H/E.
-- **No external deps** required in `node_helper` (uses Node’s global `fetch`).
-
----
-
-## Screens
-
-1. **Scoreboard** (may span multiple pages if there are many games)
-2. **Standings (pairs)**:  
-   - NL East & AL East  
-   - NL Central & AL Central  
-   - NL West & AL West
-3. **Wild Card (single)**:  
-   - NL Wild Card  
-   - AL Wild Card
-
-Rotation timing for each screen is configurable.
+- **Multi-league scoreboard**: MLB (R/H/E with innings), NHL (goals & shots), and NFL (quarter-by-quarter totals).
+- **Configurable grid**: choose columns, rows, or an explicit games-per-page value.
+- **Automatic rotation** across scoreboard pages with `rotateIntervalScores`.
+- **Team highlighting**: accentuate your favorite clubs per league.
+- **Width cap** keeps the module tidy in `middle_center`.
+- **`layoutScale` option** shrinks or enlarges the whole scoreboard without editing CSS.
+- **Status text** handles `Final/11`, `Postponed`, `Suspended`, `Warmup`, and live clocks/innings.
+- **No external deps** in the helper — uses Node’s built-in `fetch`.
 
 ---
 
@@ -82,7 +61,6 @@ Add to your `config/config.js`:
   config: {
     // Refresh
     updateIntervalScores: 60 * 1000,
-    updateIntervalStandings: 15 * 60 * 1000,
 
     league: "mlb",             // "mlb", "nhl", or "nfl"
 
@@ -93,11 +71,6 @@ Add to your `config/config.js`:
     layoutScale: 0.9,          // shrink (<1) or grow (>1) everything at once (clamped 0.6 – 1.4)
     rotateIntervalScores: 15 * 1000,
 
-    // Standings rotation
-    rotateIntervalEast: 7 * 1000,
-    rotateIntervalCentral: 12 * 1000,
-    rotateIntervalWest: 7 * 1000,
-
     // Behavior
     timeZone: "America/Chicago",
     highlightedTeams_mlb: ["CUBS"], // string or array of 3–5 letter abbrs (per league)
@@ -106,11 +79,6 @@ Add to your `config/config.js`:
     showTitle: true,
     useTimesSquareFont: true,   // set false to use the MagicMirror default font
 
-    // NEW: standings Home/Away splits
-    showHomeAwaySplits: true,   // set false to hide "Home" & "Away" columns
-    showDivisionStandings: true,
-    showWildCardStandings: true,
-
     // Width cap to keep module tidy in middle_center
     maxWidth: "720px"
   }
@@ -118,18 +86,11 @@ Add to your `config/config.js`:
 ```
 
 **Notes**
-- **League**: set `league` to `"nhl"` or `"nfl"` for hockey or football scoreboards (standings are MLB-only).
+- **League**: set `league` to `"nhl"` or `"nfl"` for hockey or football scoreboards.
 - **Header width** matches `maxWidth` and stays in the default MM font (Roboto Condensed).
-- **Highlighted teams** accept a single string `"CUBS"` or an array like `["CUBS","NYY"]` for
-  the league-specific settings `highlightedTeams_mlb`, `highlightedTeams_nhl`, and
-  `highlightedTeams_nfl`.
+- **Highlighted teams** accept a single string `"CUBS"` or an array like `["CUBS","NYY"]` for the league-specific settings `highlightedTeams_mlb`, `highlightedTeams_nhl`, and `highlightedTeams_nfl`.
 - **layoutScale** is the quickest way to fix oversize boxes—values below `1` compact the layout.
-- When both standings views are enabled the rotation order is *Scoreboard → (NL/AL East) →
-  (NL/AL Central) → (NL/AL West) → NL WC → AL WC*. Pages you disable are skipped entirely.
-- The default scoreboard layout now shows **two columns and up to four games** at a time.
-  Adjust `scoreboardColumns`, `gamesPerColumn`, or `gamesPerPage` to taste.
-- Toggle `showDivisionStandings` or `showWildCardStandings` to hide those pages entirely if
-  you only care about one view.
+- The default scoreboard layout shows **two columns and up to four games** at a time. Adjust `scoreboardColumns`, `gamesPerColumn`, or `gamesPerPage` to taste.
 
 ---
 
@@ -168,27 +129,22 @@ You now have two ways to rein in the layout when it feels oversized:
 
 | Variable | What it affects |
 | --- | --- |
-| `--box-square-base` | Size of the R/H/E squares and row height of each game card |
-| `--box-abbr-size-base` | Team abbreviation text size |
-| `--box-logo-size-base` | Team logo footprint in scoreboards |
+| `--scoreboard-card-width-base` | Base width of each scoreboard card |
+| `--scoreboard-team-font-base` | Team abbreviation text size |
+| `--scoreboard-value-font-base` | Score number size |
+| `--scoreboard-metric-width-base` | Width of the metric columns (R/H/E, Q1–Q4, etc.) |
+| `--scoreboard-gap-base` | Spacing between values inside a card |
 | `--matrix-gap-base` | Spacing between game cards |
-| `--font-size-standings-headers-base` | Header text in standings tables |
-| `--font-size-standings-values-base` | Standings numbers (W-L, GB, etc.) |
-| `--width-stand-team-base` | Width of the team column in standings |
-| `--pad-standings-inline-base` | Left/right padding in standings cells |
 
 Example override (drop into your `css/custom.css`):
 
 ```css
 :root {
-  --box-square-base: 1.7em;
-  --box-abbr-size-base: 1.5em;
+  --scoreboard-team-font-base: 30px;
+  --scoreboard-value-font-base: 34px;
   --matrix-gap-base: 10px;
-  --font-size-standings-values-base: 1.05em;
 }
 ```
-
-> The standings markup still exposes helper classes like `.team-col`, `.gb-col`, etc., so you can apply custom widths/borders when needed.
 
 ---
 
@@ -216,23 +172,10 @@ and use the header override shown above.
 **MIME errors for `/css/custom.css`**  
 - Don’t reference `css/custom.css` unless the file exists; otherwise MagicMirror serves a 404 as HTML which fails strict MIME checking.
 
-**Standings row height won’t change**  
-- Row height is constrained by line-height + logo size. Reduce `--logo-size-stand` or `--font-size-standings-values` if needed.
-
----
-
 ## FAQ
 
-**Q: What’s the Wild Card calculation?**  
-A: We exclude each division’s leader, sort the rest by win% (tie-break by wins), and compute WCGB relative to the **3rd** wild-card team:  
-`WCGB = ((wins_3rd - wins_team) + (losses_team - losses_3rd)) / 2`.  
-Values render as `--` for zero, `m<span class="fraction">1/2</span>` for halves.
-
-**Q: Can I hide Home/Away splits?**  
-A: Yes—set `showHomeAwaySplits: false` in the module config.
-
-**Q: Does the scoreboard show extra innings?**  
-A: Yes—`Final/11`, etc. Live games display R/H/E in yellow.
+**Does the scoreboard show extra innings?**
+Yes—`Final/11`, etc. Live MLB games display R/H/E in yellow, NHL shows SOG, and NFL shows quarter scores.
 
 ---
 
