@@ -1,0 +1,347 @@
+/* MMM-MLBScoresAndStandings.css */
+
+/*--------------------------------------------------
+  GLOBAL VARIABLES (easy tweaking)
+--------------------------------------------------*/
+:root {
+  /* Global scale that can be overridden per-module */
+  --box-scale: 1;
+
+  /* ===== Scoreboard ===== */
+  --scoreboard-card-width-base:      320px;
+  --scoreboard-pad-block-base:        10px;
+  --scoreboard-pad-inline-base:       14px;
+  --scoreboard-gap-base:               8px;
+  --scoreboard-status-font-base:      18px;
+  --scoreboard-label-font-base:       12px;
+  --scoreboard-team-font-base:        28px;
+  --scoreboard-value-font-base:       32px;
+  --scoreboard-metric-width-base:     56px;
+  --scoreboard-placeholder-height-base: 184px;
+
+  --scoreboard-card-width:    calc(var(--scoreboard-card-width-base) * var(--box-scale));
+  --scoreboard-pad-block:     calc(var(--scoreboard-pad-block-base) * var(--box-scale));
+  --scoreboard-pad-inline:    calc(var(--scoreboard-pad-inline-base) * var(--box-scale));
+  --scoreboard-gap:           calc(var(--scoreboard-gap-base) * var(--box-scale));
+  --scoreboard-status-font:   calc(var(--scoreboard-status-font-base) * var(--box-scale));
+  --scoreboard-label-font:    calc(var(--scoreboard-label-font-base) * var(--box-scale));
+  --scoreboard-team-font:     calc(var(--scoreboard-team-font-base) * var(--box-scale));
+  --scoreboard-value-font:    calc(var(--scoreboard-value-font-base) * var(--box-scale));
+  --scoreboard-metric-width:  calc(var(--scoreboard-metric-width-base) * var(--box-scale));
+  --scoreboard-placeholder-height: calc(var(--scoreboard-placeholder-height-base) * var(--box-scale));
+  --scoreboard-font-family: 'Times Square', Arial, sans-serif;
+
+  --scoreboard-border-color: #4c4c4c;
+  --scoreboard-border-live:  #c3941a;
+  --scoreboard-card-radius:  12px;
+  --scoreboard-card-shadow:  0 6px 12px rgba(0, 0, 0, 0.45);
+  --scoreboard-background:   transparent;
+  --scoreboard-header-bg:    transparent;
+  --scoreboard-text:         #ffffff;
+  --scoreboard-muted:        #8c8c8c;
+  --scoreboard-value-color:  #ffd242;
+
+  --matrix-gap-base:       12px;
+  --matrix-gap:           calc(var(--matrix-gap-base) * var(--box-scale));
+
+  /* ===== Standings ===== */
+  --font-size-standings-headers-base: 0.9em;
+  --font-size-standings-values-base:  1.15em;
+  --font-size-fraction-base:          0.55em;
+
+  --pad-standings-block-base: 3px;
+  --pad-standings-inline-base: 5px;
+  --height-row-stand-base: 1.3em;
+  --logo-size-stand-base: 1.0em;
+
+  /* Individual standings column widths */
+  --width-stand-team-base:   3.2em;
+  --width-stand-wl-base:     2.8em;
+  --width-stand-pct-base:    2.4em;
+  --width-stand-gb-base:     2.0em;
+  --width-stand-e-base:      2.0em;
+  --width-stand-wcgb-base:   2.0em;
+  --width-stand-wce-base:    2.0em;
+  --width-stand-streak-base: 2.6em;
+  --width-stand-l10-base:    2.6em;
+  --width-stand-home-base:   2.6em;
+  --width-stand-away-base:   2.6em;
+
+  --font-size-standings-headers: calc(var(--font-size-standings-headers-base) * var(--box-scale));
+  --font-size-standings-values:  calc(var(--font-size-standings-values-base) * var(--box-scale));
+  --font-size-fraction:          calc(var(--font-size-fraction-base) * var(--box-scale));
+  --pad-standings-block:        calc(var(--pad-standings-block-base) * var(--box-scale));
+  --pad-standings-inline:       calc(var(--pad-standings-inline-base) * var(--box-scale));
+  --height-row-stand:           calc(var(--height-row-stand-base) * var(--box-scale));
+  --logo-size-stand:            calc(var(--logo-size-stand-base) * var(--box-scale));
+  --width-stand-team:           calc(var(--width-stand-team-base) * var(--box-scale));
+  --width-stand-wl:             calc(var(--width-stand-wl-base) * var(--box-scale));
+  --width-stand-pct:            calc(var(--width-stand-pct-base) * var(--box-scale));
+  --width-stand-gb:             calc(var(--width-stand-gb-base) * var(--box-scale));
+  --width-stand-e:              calc(var(--width-stand-e-base) * var(--box-scale));
+  --width-stand-wcgb:           calc(var(--width-stand-wcgb-base) * var(--box-scale));
+  --width-stand-wce:            calc(var(--width-stand-wce-base) * var(--box-scale));
+  --width-stand-streak:         calc(var(--width-stand-streak-base) * var(--box-scale));
+  --width-stand-l10:            calc(var(--width-stand-l10-base) * var(--box-scale));
+  --width-stand-home:           calc(var(--width-stand-home-base) * var(--box-scale));
+  --width-stand-away:           calc(var(--width-stand-away-base) * var(--box-scale));
+}
+
+/*--------------------------------------------------
+  Font face (Times Square, module-scoped usage below)
+--------------------------------------------------*/
+@font-face {
+  font-family: 'Times Square';
+  src: url('fonts/TimesSquare-m105.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*--------------------------------------------------
+  Module Header — keep DEFAULT MagicMirror font
+--------------------------------------------------*/
+.module-header {
+  font-family: inherit;
+  font-size: 1.2em;
+  font-weight: bold;
+  margin: 0;
+}
+.scores-screen .module-header + hr { border: none; border-bottom: 1px solid #999; margin: 4px 0 8px; }
+.standings-screen .module-header + hr { display: none; }
+
+/*--------------------------------------------------
+  Scoreboard Grid
+--------------------------------------------------*/
+
+.games-matrix {
+  border-collapse: separate;
+  border-spacing: var(--matrix-gap) var(--matrix-gap);
+  margin: 0;
+  table-layout: auto;
+  width: auto;
+}
+
+.games-matrix-cell {
+  vertical-align: top;
+  padding: 0;
+  text-align: left;
+  width: var(--scoreboard-card-width);
+}
+
+.games-matrix-cell.empty::before {
+  content: "";
+  display: inline-block;
+  width: var(--scoreboard-card-width);
+  height: var(--scoreboard-placeholder-height);
+  border-radius: var(--scoreboard-card-radius);
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.6);
+}
+
+.games-matrix-cell > .scoreboard-card {
+  margin: 0;
+}
+
+/*--------------------------------------------------
+  SCOREBOARD CARD
+--------------------------------------------------*/
+.font-default {
+  --scoreboard-font-family: var(--font-primary, 'Roboto Condensed'), Arial, sans-serif;
+}
+
+.font-times-square {
+  --scoreboard-font-family: 'Times Square', Arial, sans-serif;
+}
+
+.scoreboard-card {
+  width: var(--scoreboard-card-width);
+  max-width: 100%;
+  border: 2px solid var(--scoreboard-border-color);
+  border-radius: var(--scoreboard-card-radius);
+  overflow: hidden;
+  background: var(--scoreboard-background);
+  box-shadow: var(--scoreboard-card-shadow);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--scoreboard-font-family);
+  color: var(--scoreboard-text);
+}
+
+.scoreboard-card .scoreboard-header,
+.scoreboard-card .scoreboard-row {
+  display: grid;
+  grid-template-columns: 1fr repeat(3, var(--scoreboard-metric-width));
+  align-items: center;
+  column-gap: var(--scoreboard-gap);
+}
+
+.scoreboard-card .scoreboard-header {
+  background: var(--scoreboard-header-bg);
+  padding: var(--scoreboard-pad-block) var(--scoreboard-pad-inline);
+}
+
+.scoreboard-card .scoreboard-status {
+  font-size: var(--scoreboard-status-font);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.scoreboard-card .scoreboard-status.live {
+  color: var(--scoreboard-value-color);
+}
+
+.scoreboard-card .scoreboard-label {
+  font-size: var(--scoreboard-label-font);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--scoreboard-muted);
+  font-weight: 600;
+}
+
+.scoreboard-card .scoreboard-body {
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+}
+
+.scoreboard-card .scoreboard-row {
+  padding: var(--scoreboard-pad-block) var(--scoreboard-pad-inline);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.scoreboard-card .scoreboard-row:first-child {
+  border-top: none;
+}
+
+.scoreboard-card .scoreboard-team {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--scoreboard-team-font) * 0.25);
+}
+
+.scoreboard-card .scoreboard-team-logo {
+  height: calc(var(--scoreboard-team-font) * 0.8);
+  max-height: calc(var(--scoreboard-team-font) * 0.9);
+  width: auto;
+  display: block;
+}
+
+.scoreboard-card .scoreboard-team-abbr {
+  font-size: var(--scoreboard-team-font);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.scoreboard-card .scoreboard-value {
+  font-size: var(--scoreboard-value-font);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--scoreboard-value-color);
+  line-height: 1;
+  font-weight: 700;
+}
+
+.scoreboard-card.is-live {
+  border-color: var(--scoreboard-border-live);
+  box-shadow: 0 0 18px rgba(255, 210, 66, 0.25);
+}
+
+.scoreboard-card.is-preview {
+  border-color: #505050;
+}
+
+.scoreboard-card.is-preview .scoreboard-status {
+  color: var(--scoreboard-muted);
+}
+
+.scoreboard-card.is-preview .scoreboard-value {
+  color: var(--scoreboard-muted);
+}
+
+.scoreboard-card.is-postponed,
+.scoreboard-card.is-suspended {
+  border-color: #4a4a4a;
+  box-shadow: none;
+}
+
+.scoreboard-card.is-postponed .scoreboard-status,
+.scoreboard-card.is-postponed .scoreboard-value,
+.scoreboard-card.is-suspended .scoreboard-status,
+.scoreboard-card.is-suspended .scoreboard-value {
+  color: var(--scoreboard-muted);
+}
+
+.scoreboard-card.is-warmup .scoreboard-status {
+  color: var(--scoreboard-value-color);
+}
+
+.scoreboard-card .scoreboard-row.loser .scoreboard-team {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.scoreboard-card .scoreboard-row.loser .scoreboard-value {
+  color: rgba(255, 210, 66, 0.55);
+}
+
+/* Highlighted team (scoreboard + standings) */
+.scoreboard-card .team-highlight,
+.scoreboard-card .team-highlight ~ .scoreboard-value,
+.mlb-standings tr.team-highlight td { color: var(--scoreboard-value-color) !important; }
+
+/*--------------------------------------------------
+  STANDINGS
+--------------------------------------------------*/
+.mlb-standings { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+.mlb-standings tr { height: var(--height-row-stand); }
+.mlb-standings th {
+  border: 1px solid #444; padding: var(--pad-standings-block) var(--pad-standings-inline);
+  text-align: center; vertical-align: middle;
+  font-family: 'Times Square', Arial, sans-serif;
+  font-size: var(--font-size-standings-headers); white-space: nowrap;
+}
+.mlb-standings td {
+  border: 1px solid #444; padding: var(--pad-standings-block) var(--pad-standings-inline);
+  text-align: center; vertical-align: middle;
+  font-family: 'Times Square', Arial, sans-serif;
+  font-size: var(--font-size-standings-values); white-space: nowrap;
+}
+
+/* Division title (Times Square) */
+.standings-division .division-title {
+  font-family: 'Times Square', Arial, sans-serif;
+  font-size: 1.2em;
+  margin: 0;
+}
+
+/* Team cell inside standings */
+.mlb-standings .team-cell { display: inline-flex; align-items: center; gap: 4px; }
+.mlb-standings .logo-cell { width: var(--logo-size-stand); height: var(--logo-size-stand); object-fit: contain; }
+
+/* Fraction styling for 1/2 (smaller inline) */
+.mlb-standings .fraction { font-size: var(--font-size-fraction) !important; vertical-align: baseline; }
+
+/* Fixed widths per column */
+.mlb-standings th.team-col,  .mlb-standings td.team-col  { width: var(--width-stand-team); }
+.mlb-standings th.wl-col,    .mlb-standings td.wl-col    { width: var(--width-stand-wl); }
+.mlb-standings th.pct-col,   .mlb-standings td.pct-col   { width: var(--width-stand-pct); }
+.mlb-standings th.gb-col,    .mlb-standings td.gb-col    { width: var(--width-stand-gb); }
+.mlb-standings th.e-col,     .mlb-standings td.e-col     { width: var(--width-stand-e); }
+.mlb-standings th.wcgb-col,  .mlb-standings td.wcgb-col  { width: var(--width-stand-wcgb); }
+.mlb-standings th.wce-col,   .mlb-standings td.wce-col   { width: var(--width-stand-wce); }
+.mlb-standings th.streak-col,.mlb-standings td.streak-col{ width: var(--width-stand-streak); }
+.mlb-standings th.l10-col,   .mlb-standings td.l10-col   { width: var(--width-stand-l10); }
+.mlb-standings th.home-col,  .mlb-standings td.home-col  { width: var(--width-stand-home); }
+.mlb-standings th.away-col,  .mlb-standings td.away-col  { width: var(--width-stand-away); }
+
+/* Optional thicker separators */
+.mlb-standings th.sep-right, .mlb-standings td.sep-right { border-right-width: 4px; }
+
+/* Fullscreen helper */
+.fullscreen_above .mlb-fullscreen-center { display: flex; flex-direction: column; justify-content: center; height: 100vh; }

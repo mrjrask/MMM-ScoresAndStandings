@@ -1,0 +1,20 @@
+{
+  "name": "MMM-MLBScoresAndStandings",
+  "version": "1.0.0",
+  "description": "MagicMirror module to display today's MLB games and current standings",
+  "main": "MMM-MLBScoresAndStandings.js",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mrjrask/MMM-MLBScoresAndStandings.git"
+  },
+  "author": "mrjrask & ChatGPT",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mrjrask/MMM-MLBScoresAndStandings/issues"
+  },
+  "homepage": "https://github.com/mrjrask/MMM-MLBScoresAndStandings#readme",
+  "dependencies": {
+    "moment": "^2.29.0"
+  }
+}
