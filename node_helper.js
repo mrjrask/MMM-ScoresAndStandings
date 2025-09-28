@@ -2,66 +2,43 @@
 const NodeHelper = require("node_helper");
 const fetch      = global.fetch;
 
-const SUPPORTED_LEAGUES = ["mlb", "nhl", "nfl"];
-
 module.exports = NodeHelper.create({
   start() {
     console.log("🛰️ MMM-ScoresAndStandings helper started");
-    this.scoreIntervals = {};
-    this.standInterval = null;
   },
 
   socketNotificationReceived(notification, payload) {
     if (notification === "INIT") {
       this.config = payload || {};
-      this.leagues = this._getLeagues();
-      this.league = this.leagues[0] || "mlb";
+      this.league = this._getLeague();
 
-      this._clearIntervals();
-
-      const scoreInterval = Math.max(10 * 1000, this.config.updateIntervalScores || (60 * 1000));
-      for (const league of this.leagues) {
-        this._fetchGamesForLeague(league);
-        this.scoreIntervals[league] = setInterval(() => this._fetchGamesForLeague(league), scoreInterval);
-      }
-
-      if (this.leagues.includes("mlb")) {
+      this._fetchGames();
+      if (this.league === "mlb") {
         this._fetchStandings();
-        const standInterval = Math.max(60 * 1000, this.config.updateIntervalStandings || (15 * 60 * 1000));
-        this.standInterval = setInterval(() => this._fetchStandings(), standInterval);
       } else {
+        // Immediately clear out any previous standings on the front-end
         this.sendSocketNotification("STANDINGS", []);
       }
-    }
-  },
 
-  _clearIntervals() {
-    if (this.scoreIntervals) {
-      for (const key of Object.keys(this.scoreIntervals)) {
-        clearInterval(this.scoreIntervals[key]);
+      const scoreInterval = Math.max(10 * 1000, this.config.updateIntervalScores || (60 * 1000));
+      setInterval(() => this._fetchGames(), scoreInterval);
+
+      if (this.league === "mlb") {
+        const standInterval = Math.max(60 * 1000, this.config.updateIntervalStandings || (15 * 60 * 1000));
+        setInterval(() => this._fetchStandings(), standInterval);
       }
-    }
-    this.scoreIntervals = {};
-    if (this.standInterval) {
-      clearInterval(this.standInterval);
-      this.standInterval = null;
     }
   },
 
   async _fetchGames() {
-    return this._fetchGamesForLeague(this._getLeague());
-  },
-
-  async _fetchGamesForLeague(league) {
-    const sanitized = this._sanitizeLeague(league) || "mlb";
-    if (sanitized === "nhl") return this._fetchNhlGames();
-    if (sanitized === "nfl") return this._fetchNflGames();
+    const league = this._getLeague();
+    if (league === "nhl") return this._fetchNhlGames();
+    if (league === "nfl") return this._fetchNflGames();
     return this._fetchMlbGames();
   },
 
   async _fetchStandings() {
-    const leagues = Array.isArray(this.leagues) ? this.leagues : this._getLeagues();
-    if (!leagues.includes("mlb")) return;
+    if (this._getLeague() !== "mlb") return;
 
     try {
       const season = new Date().getFullYear();
@@ -110,7 +87,7 @@ module.exports = NodeHelper.create({
       const games = (json.dates && json.dates[0] && json.dates[0].games) || [];
 
       console.log(`⚾️ Sending ${games.length} MLB games to front-end.`);
-      this.sendSocketNotification("GAMES", { league: "mlb", games });
+      this.sendSocketNotification("GAMES", games);
     } catch (e) {
       console.error("🚨 MLB fetchGames failed:", e);
     }
@@ -125,7 +102,7 @@ module.exports = NodeHelper.create({
       const games = (json.dates && json.dates[0] && json.dates[0].games) || [];
 
       console.log(`🏒 Sending ${games.length} NHL games to front-end.`);
-      this.sendSocketNotification("GAMES", { league: "nhl", games });
+      this.sendSocketNotification("GAMES", games);
     } catch (e) {
       console.error("🚨 NHL fetchGames failed:", e);
     }
@@ -140,44 +117,15 @@ module.exports = NodeHelper.create({
       const games = json.events || [];
 
       console.log(`🏈 Sending ${games.length} NFL games to front-end.`);
-      this.sendSocketNotification("GAMES", { league: "nfl", games });
+      this.sendSocketNotification("GAMES", games);
     } catch (e) {
       console.error("🚨 NFL fetchGames failed:", e);
     }
   },
 
-  _sanitizeLeague(value) {
-    if (typeof value !== "string") return null;
-    const lower = value.trim().toLowerCase();
-    return SUPPORTED_LEAGUES.includes(lower) ? lower : null;
-  },
-
-  _getLeagues() {
-    const leagues = [];
-    if (this.config && Array.isArray(this.config.leagues)) {
-      for (const entry of this.config.leagues) {
-        const cleaned = this._sanitizeLeague(entry);
-        if (cleaned && !leagues.includes(cleaned)) leagues.push(cleaned);
-      }
-    } else if (this.config && typeof this.config.leagues === "string" && this.config.leagues.trim() !== "") {
-      const single = this._sanitizeLeague(this.config.leagues);
-      if (single) leagues.push(single);
-    }
-
-    if (!leagues.length) {
-      const fallback = this._sanitizeLeague(this.config && this.config.league);
-      leagues.push(fallback || "mlb");
-    }
-
-    return leagues;
-  },
-
   _getLeague() {
-    if (Array.isArray(this.leagues) && this.leagues.length) {
-      return this.leagues[0];
-    }
-    const fromConfig = this._getLeagues();
-    return fromConfig[0] || "mlb";
+    const league = this.config && this.config.league ? this.config.league : "mlb";
+    return String(league).trim().toLowerCase();
   },
 
   _getTargetDate() {

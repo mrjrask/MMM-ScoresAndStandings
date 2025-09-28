@@ -28,7 +28,7 @@ It rotates between game scoreboards and standings (division pairs and wild cards
 ## Features
 
 - **Scoreboard** uses a fixed 4 × 3 grid (12 slots) per page.
-- **Multi-league support**: MLB (scoreboard + standings), NHL (goals & shots on goal), NFL (quarter-by-quarter with totals) — rotate one module through several leagues or pin each league to its own instance.
+- **Multi-league support**: MLB (scoreboard + standings), NHL (goals & shots on goal), NFL (quarter-by-quarter with totals).
 - **Standings** cycle: NL/AL East, NL/AL Central, NL/AL West, NL Wild Card, AL Wild Card.
 - **Wild Card**: division leaders are excluded; WCGB computed vs. the 3rd WC team.
 - **“GB / WCGB / E#”**: `0` rendered as `--`; half-games show as `1/2` in smaller type.
@@ -84,8 +84,7 @@ Add to your `config/config.js`:
     updateIntervalScores: 60 * 1000,
     updateIntervalStandings: 15 * 60 * 1000,
 
-    league: "mlb",             // default / primary league ("mlb", "nhl", or "nfl")
-    leagues: ["mlb", "nhl"],   // optional scoreboard rotation order
+    league: "mlb",             // "mlb", "nhl", or "nfl"
 
     // Scoreboard layout
     scoreboardColumns: 2,     // number of columns of game boxes per page
@@ -116,26 +115,8 @@ Add to your `config/config.js`:
 }
 ```
 
-To show multiple leagues simultaneously, duplicate the module definition with a
-different `league` value for each instance:
-
-```js
-{
-  module: "MMM-ScoresAndStandings",
-  position: "top_left",
-  config: { league: "mlb" }
-},
-{
-  module: "MMM-ScoresAndStandings",
-  position: "bottom_left",
-  config: { league: "nhl" }
-}
-```
-
 **Notes**
-- **League**: `league` remains the fallback/primary sport when `leagues` isn’t supplied.
-- **Scoreboard rotation**: set `leagues: ["mlb", "nhl", "nfl"]` (any subset) to rotate the scoreboard through each sport before the standings. The first entry (or `league` when omitted) is treated as the primary league, and MLB standings only appear when `"mlb"` is included.
-- **Multiple module instances**: add another `MMM-ScoresAndStandings` entry in `config.js` for each league you want to display. Each instance runs independently, so you can pin MLB to one region and NHL/NFL to another without extra setup.
+- **League**: set `league` to `"nhl"` or `"nfl"` for hockey or football scoreboards (standings are MLB-only).
 - **Header width** matches `maxWidth` and stays in the default MM font (Roboto Condensed).
 - **Highlighted teams** accept a single string `"CUBS"` or an array like `["CUBS","NYY"]`.
 - **layoutScale** is the quickest way to fix oversize boxes—values below `1` compact the layout.
