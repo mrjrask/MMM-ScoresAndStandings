@@ -810,7 +810,7 @@
 
       var statusText = "";
       if (isPreview) {
-        statusText = this._formatStartTime(competition.date || game.date);
+        statusText = this._formatNflStartTime(competition.date || game.date);
       } else if (isFinal) {
         statusText = detailed || "Final";
       } else if (isLive) {
@@ -937,6 +937,26 @@
         });
       } catch (e) {
         return "";
+      }
+    },
+
+    _formatNflStartTime: function (isoDate) {
+      var timeText = this._formatStartTime(isoDate);
+      if (!isoDate) return timeText;
+      try {
+        var date = new Date(isoDate);
+        if (isNaN(date.getTime())) return timeText;
+        var tz = this.config.timeZone || "America/Chicago";
+        var weekday = date.toLocaleDateString("en-US", {
+          timeZone: tz,
+          weekday: "short"
+        });
+        if (!weekday) return timeText;
+        if (/^sun/i.test(weekday)) return timeText;
+        if (!timeText) return weekday;
+        return weekday + " " + timeText;
+      } catch (e) {
+        return timeText;
       }
     },
 
