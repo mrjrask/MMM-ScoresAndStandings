@@ -314,17 +314,71 @@ module.exports = NodeHelper.create({
 
   async _fetchNflGames() {
     try {
-      const { dateCompact } = this._getTargetDate();
-      const url  = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${dateCompact}`;
-      const res  = await fetch(url);
-      const json = await res.json();
-      const games = json.events || [];
+      const {
+        startIso,
+        endIso,
+        dateIsos
+      } = this._getNflWeekDateRange();
 
-      console.log(`🏈 Sending ${games.length} NFL games to front-end.`);
+      const aggregated = new Map();
+
+      for (let i = 0; i < dateIsos.length; i += 1) {
+        const dateIso = dateIsos[i];
+        const dateCompact = dateIso.replace(/-/g, "");
+        const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${dateCompact}`;
+
+        try {
+          const res = await fetch(url);
+          const json = await res.json();
+          const events = Array.isArray(json.events) ? json.events : [];
+
+          for (let j = 0; j < events.length; j += 1) {
+            const event = events[j];
+            if (!event) continue;
+            const key = event.id || event.uid || `${dateIso}-${j}`;
+            if (!aggregated.has(key)) aggregated.set(key, event);
+          }
+        } catch (err) {
+          console.error(`🚨 NFL fetchGames failed for ${dateIso}:`, err);
+        }
+      }
+
+      const games = Array.from(aggregated.values());
+      games.sort((a, b) => {
+        const dateA = this._firstDate(
+          a && a.date,
+          a && a.startDate,
+          a && a.startTimeUTC,
+          a && a.competitions && a.competitions[0] && (a.competitions[0].date || a.competitions[0].startDate || a.competitions[0].startTimeUTC)
+        );
+        const dateB = this._firstDate(
+          b && b.date,
+          b && b.startDate,
+          b && b.startTimeUTC,
+          b && b.competitions && b.competitions[0] && (b.competitions[0].date || b.competitions[0].startDate || b.competitions[0].startTimeUTC)
+        );
+
+        if (dateA && dateB) return dateA - dateB;
+        if (dateA) return -1;
+        if (dateB) return 1;
+        return 0;
+      });
+
+      console.log(`🏈 Sending ${games.length} NFL games (${startIso} → ${endIso}) to front-end.`);
       this._notifyGames("nfl", games);
     } catch (e) {
       console.error("🚨 NFL fetchGames failed:", e);
     }
+  },
+
+  _firstDate(...values) {
+    for (let i = 0; i < values.length; i += 1) {
+      const value = values[i];
+      if (!value) continue;
+      const dt = new Date(value);
+      if (!Number.isNaN(dt.getTime())) return dt;
+    }
+    return null;
   },
 
   _getLeague() {
@@ -419,6 +473,50 @@ module.exports = NodeHelper.create({
     return {
       dateIso,
       dateCompact: dateIso.replace(/-/g, "")
+    };
+  },
+
+  _getNflWeekDateRange() {
+    const tz = this.config && this.config.timeZone ? this.config.timeZone : "America/Chicago";
+    const now = new Date();
+
+    const dateIso = now.toLocaleDateString("en-CA", { timeZone: tz });
+    const timeStr = now.toLocaleTimeString("en-GB", {
+      timeZone: tz,
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+    const [hStr, mStr] = timeStr.split(":");
+    const hour = parseInt(hStr, 10);
+    const minute = parseInt(mStr, 10);
+
+    const localMidnight = new Date(`${dateIso}T00:00:00Z`);
+    const dayOfWeek = localMidnight.getUTCDay();
+
+    const weekStart = new Date(localMidnight);
+    const offset = (dayOfWeek - 4 + 7) % 7; // 4 === Thursday
+    weekStart.setUTCDate(weekStart.getUTCDate() - offset);
+
+    const minutes = (Number.isFinite(hour) ? hour : 0) * 60 + (Number.isFinite(minute) ? minute : 0);
+    if (dayOfWeek === 3 && minutes >= (9 * 60)) {
+      weekStart.setUTCDate(weekStart.getUTCDate() + 7);
+    }
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 4);
+
+    const dateIsos = [];
+    const cursor = new Date(weekStart);
+    while (cursor.getTime() <= weekEnd.getTime()) {
+      dateIsos.push(cursor.toISOString().slice(0, 10));
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+
+    return {
+      startIso: weekStart.toISOString().slice(0, 10),
+      endIso: weekEnd.toISOString().slice(0, 10),
+      dateIsos
     };
   }
 });
