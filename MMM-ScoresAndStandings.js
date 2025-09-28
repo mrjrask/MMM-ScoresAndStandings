@@ -4,6 +4,8 @@
 (function () {
   "use strict";
 
+  var SUPPORTED_LEAGUES = ["mlb", "nhl", "nfl"];
+
   var MLB_ABBREVIATIONS = {
     "Chicago Cubs": "CUBS","Atlanta Braves": "ATL","Miami Marlins": "MIA",
     "New York Mets": "NYM","Philadelphia Phillies": "PHI","Washington Nationals": "WAS",
@@ -45,6 +47,7 @@
       gamesPerColumn:                  DEFAULT_GAMES_PER_COLUMN,
       gamesPerPage:                      null,
       league:                        "mlb",
+      leagues:                          null,
       layoutScale:                     1.0,
       rotateIntervalScores:           15 * 1000,
       rotateIntervalEast:              7 * 1000,
@@ -66,13 +69,15 @@
 
     getHeader: function () {
       if (!this.config.showTitle) return null;
-      var league = this._getLeague();
-      var showingGames = (this.totalStandPages === 0) || (this.currentScreen < this.totalGamePages);
-      if (league === "mlb") {
-        return showingGames ? "MLB Scoreboard" : "MLB Standings";
+      var showingGames = this._isShowingGames();
+      if (showingGames) {
+        var league = this._leagueForScreen(this.currentScreen);
+        if (league === "mlb") return "MLB Scoreboard";
+        if (league === "nhl") return "NHL Scoreboard";
+        if (league === "nfl") return "NFL Scoreboard";
+        return "Scoreboard";
       }
-      var title = (league === "nhl") ? "NHL Scoreboard" : "NFL Scoreboard";
-      return title;
+      return this._hasLeague("mlb") ? "MLB Standings" : null;
     },
 
     getScripts: function () {
@@ -84,7 +89,9 @@
     },
 
     start: function () {
-      this.games           = [];
+      this.leagueOrder     = this._getConfiguredLeagues();
+      this.gamesByLeague   = {};
+      this._gamesLoadedFor = {};
       this.recordGroups    = []; // six division records from helper
       this.loadedGames     = false;
       this.loadedStandings = false;
@@ -93,6 +100,7 @@
       this._scoreboardRows    = DEFAULT_GAMES_PER_COLUMN;
       this._gamesPerPage      = this._scoreboardColumns * this._scoreboardRows;
       this._layoutScale       = 1;
+      this._gamePageMap       = [];
 
       // pages: N game pages + 3 division pages (pair) + 2 wild card pages
       this.totalGamePages  = 1;
@@ -104,6 +112,7 @@
       this._syncScoreboardLayout();
       this._standingsPages = [];
       this._refreshStandingsPagination();
+      this._rebuildGamePagination();
 
       this.sendSocketNotification("INIT", this.config);
       var self = this;
@@ -123,9 +132,87 @@
       return s;
     },
 
+    _sanitizeLeague: function (league) {
+      if (typeof league !== "string") return null;
+      var lower = league.trim().toLowerCase();
+      return SUPPORTED_LEAGUES.indexOf(lower) !== -1 ? lower : null;
+    },
+
+    _getConfiguredLeagues: function () {
+      var leagues = [];
+      if (Array.isArray(this.config.leagues)) {
+        for (var i = 0; i < this.config.leagues.length; i++) {
+          var cleaned = this._sanitizeLeague(this.config.leagues[i]);
+          if (cleaned && leagues.indexOf(cleaned) === -1) leagues.push(cleaned);
+        }
+      } else if (typeof this.config.leagues === "string" && this.config.leagues.trim() !== "") {
+        var single = this._sanitizeLeague(this.config.leagues);
+        if (single) leagues.push(single);
+      }
+
+      if (!leagues.length) {
+        var fallback = this._sanitizeLeague(this.config.league);
+        leagues.push(fallback || "mlb");
+      }
+
+      return leagues;
+    },
+
     _getLeague: function () {
-      var league = this.config && this.config.league ? this.config.league : "mlb";
-      return String(league).trim().toLowerCase();
+      if (Array.isArray(this.leagueOrder) && this.leagueOrder.length) {
+        return this.leagueOrder[0];
+      }
+      return this._getConfiguredLeagues()[0] || "mlb";
+    },
+
+    _hasLeague: function (league) {
+      if (!league) return false;
+      var lower = String(league).trim().toLowerCase();
+      var list = Array.isArray(this.leagueOrder) ? this.leagueOrder : this._getConfiguredLeagues();
+      return list.indexOf(lower) !== -1;
+    },
+
+    _isShowingGames: function () {
+      return (this.totalStandPages === 0) || (this.currentScreen < this.totalGamePages);
+    },
+
+    _leagueForScreen: function (screenIndex) {
+      if (typeof screenIndex !== "number" || screenIndex < 0) screenIndex = this.currentScreen;
+      if (!Array.isArray(this._gamePageMap) || !this._gamePageMap.length) {
+        return this._getLeague();
+      }
+      var meta = this._gamePageMap[screenIndex];
+      if (!meta && screenIndex >= this._gamePageMap.length) {
+        meta = this._gamePageMap[this._gamePageMap.length - 1];
+      }
+      return (meta && meta.league) ? meta.league : this._getLeague();
+    },
+
+    _rebuildGamePagination: function () {
+      var map = [];
+      var perPage = this._gamesPerPage > 0 ? this._gamesPerPage : 1;
+      var list = Array.isArray(this.leagueOrder) && this.leagueOrder.length ? this.leagueOrder : [this._getLeague()];
+
+      for (var i = 0; i < list.length; i++) {
+        var league = list[i];
+        var games = this.gamesByLeague[league];
+        var totalGames = Array.isArray(games) ? games.length : 0;
+        var pagesForLeague = Math.max(1, Math.ceil(totalGames / perPage));
+        for (var page = 0; page < pagesForLeague; page++) {
+          map.push({ league: league, pageIndex: page });
+        }
+      }
+
+      if (!map.length) {
+        map.push({ league: this._getLeague(), pageIndex: 0 });
+      }
+
+      this._gamePageMap = map;
+      this.totalGamePages = map.length;
+
+      var totalScreens = this.totalGamePages + this.totalStandPages;
+      if (totalScreens === 0) totalScreens = 1;
+      if (this.currentScreen >= totalScreens) this.currentScreen = 0;
     },
 
     _injectHeaderWidthStyle: function () {
@@ -210,10 +297,22 @@
     socketNotificationReceived: function (notification, payload) {
       try {
         if (notification === "GAMES") {
-          this.loadedGames    = true;
-          this.games          = Array.isArray(payload) ? payload : [];
+          var leaguePayload = this._sanitizeLeague(payload && payload.league);
+          var league = leaguePayload || this._getLeague();
+          var games;
+          if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+            games = Array.isArray(payload.games) ? payload.games : [];
+          } else {
+            games = Array.isArray(payload) ? payload : [];
+          }
+
+          if (!this.gamesByLeague) this.gamesByLeague = {};
+          this.gamesByLeague[league] = games;
+          if (!this._gamesLoadedFor) this._gamesLoadedFor = {};
+          this._gamesLoadedFor[league] = true;
+          this.loadedGames = true;
           this._syncScoreboardLayout();
-          this.totalGamePages = Math.max(1, Math.ceil(this.games.length / this._gamesPerPage));
+          this._rebuildGamePagination();
           this._refreshStandingsPagination();
           this.updateDom();
         }
@@ -238,7 +337,7 @@
       this._injectHeaderWidthStyle();
 
       var wrapper = document.createElement("div");
-      var showingGames = (this.totalStandPages === 0) || (this.currentScreen < this.totalGamePages);
+      var showingGames = this._isShowingGames();
       wrapper.className = showingGames ? "scores-screen" : "standings-screen";
 
       var fontClass = (this.config.useTimesSquareFont === false) ? "font-default" : "font-times-square";
@@ -257,10 +356,14 @@
         wrapper.style.overflow = "hidden";
       }
 
-      if (showingGames && !this.loadedGames)       return this._noData("Loading games...");
-      if (!showingGames && !this.loadedStandings)  return this._noData("Loading standings...");
-      if (showingGames && this.games.length === 0) return this._noData("No games to display.");
-      if (!showingGames && this.recordGroups.length === 0) return this._noData("Standings unavailable.");
+      if (showingGames) {
+        var league = this._leagueForScreen(this.currentScreen);
+        var loaded = this._gamesLoadedFor && this._gamesLoadedFor[league];
+        if (!this.loadedGames || !loaded) return this._noData("Loading games...");
+      } else {
+        if (!this.loadedStandings) return this._noData("Loading standings...");
+        if (!this.recordGroups.length) return this._noData("Standings unavailable.");
+      }
 
       try {
         wrapper.appendChild(showingGames ? this._buildGames() : this._buildStandings());
@@ -275,11 +378,23 @@
     _buildGames: function () {
       this._syncScoreboardLayout();
 
-      var start = this.currentScreen * this._gamesPerPage;
-      var games = this.games.slice(start, start + this._gamesPerPage);
+      var meta = (this._gamePageMap && this._gamePageMap[this.currentScreen]) || this._gamePageMap[0];
+      var league = (meta && meta.league) ? meta.league : this._getLeague();
+      var pageIndex = meta && typeof meta.pageIndex === "number" ? meta.pageIndex : 0;
+
+      var gamesForLeague = this.gamesByLeague && this.gamesByLeague[league] ? this.gamesByLeague[league] : [];
+      var start = pageIndex * this._gamesPerPage;
+      var games = gamesForLeague.slice(start, start + this._gamesPerPage);
+
+      if (!games.length) {
+        var placeholder = this._noData("No games to display.");
+        placeholder.classList.add("no-games");
+        return placeholder;
+      }
 
       var matrix = document.createElement("table");
       matrix.className = "games-matrix";
+      if (league) matrix.classList.add("league-" + league);
 
       var tbody = document.createElement("tbody");
 
@@ -294,7 +409,7 @@
           var index = r * this._scoreboardColumns + c;
           var game = games[index];
           if (game) {
-            cell.appendChild(this.createGameBox(game));
+            cell.appendChild(this.createGameBox(game, league));
           } else {
             cell.classList.add("empty");
           }
@@ -309,8 +424,8 @@
       return matrix;
     },
 
-    createGameBox: function (game) {
-      var league = this._getLeague();
+    createGameBox: function (game, league) {
+      league = this._sanitizeLeague(league) || this._getLeague();
       if (league === "nhl") return this._createNhlGameCard(game);
       if (league === "nfl") return this._createNflGameCard(game);
       return this._createMlbGameCard(game);
@@ -321,6 +436,7 @@
       card.className = "scoreboard-card";
 
       var league = config && config.league ? config.league : this._getLeague();
+      league = this._sanitizeLeague(league) || this._getLeague();
       if (league) card.classList.add("league-" + league);
 
       var classes = config && config.cardClasses;
@@ -377,7 +493,7 @@
         var logo = document.createElement("img");
         logo.className = "scoreboard-team-logo";
         if (logoAbbr) {
-          logo.src = this.getLogoUrl(logoAbbr);
+          logo.src = this.getLogoUrl(logoAbbr, league);
         } else {
           logo.style.display = "none";
         }
@@ -774,7 +890,7 @@
     },
 
     _refreshStandingsPagination: function () {
-      if (this._getLeague() !== "mlb") {
+      if (!this._hasLeague("mlb")) {
         this._standingsPages = [];
         this.totalStandPages = 0;
         if (this.currentScreen >= this.totalGamePages) this.currentScreen = 0;
@@ -1181,12 +1297,15 @@
       return false;
     },
 
-    getLogoUrl: function (abbr) {
-      var league = this._getLeague();
+    getLogoUrl: function (abbr, league) {
+      var sanitized = this._sanitizeLeague(league);
+      if (!sanitized) {
+        sanitized = this._hasLeague("mlb") ? "mlb" : this._getLeague();
+      }
       var path;
-      if (league === "nhl") {
+      if (sanitized === "nhl") {
         path = "images/nhl/" + String(abbr || "").toUpperCase() + ".png";
-      } else if (league === "nfl") {
+      } else if (sanitized === "nfl") {
         path = "images/nfl/" + String(abbr || "").toLowerCase() + ".png";
       } else {
         path = "images/mlb/" + String(abbr || "").toUpperCase() + ".png";
