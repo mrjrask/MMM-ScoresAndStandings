@@ -2,28 +2,49 @@
 const NodeHelper = require("node_helper");
 const fetch      = global.fetch;
 
+const SUPPORTED_LEAGUES = ["mlb", "nhl", "nfl"];
+
 module.exports = NodeHelper.create({
   start() {
     console.log("🛰️ MMM-ScoresAndStandings helper started");
+    this.fetchTimer = null;
   },
 
   socketNotificationReceived(notification, payload) {
     if (notification === "INIT") {
       this.config = payload || {};
-      this.league = this._getLeague();
+      this.leagues = this._resolveConfiguredLeagues();
+      if (!Array.isArray(this.leagues) || this.leagues.length === 0) {
+        this.leagues = [this._getLeague()];
+      }
+
+      if (this.fetchTimer) {
+        clearInterval(this.fetchTimer);
+        this.fetchTimer = null;
+      }
 
       this._fetchGames();
 
       const scoreInterval = Math.max(10 * 1000, this.config.updateIntervalScores || (60 * 1000));
-      setInterval(() => this._fetchGames(), scoreInterval);
+      this.fetchTimer = setInterval(() => this._fetchGames(), scoreInterval);
     }
   },
 
   async _fetchGames() {
-    const league = this._getLeague();
-    if (league === "nhl") return this._fetchNhlGames();
-    if (league === "nfl") return this._fetchNflGames();
-    return this._fetchMlbGames();
+    const leagues = Array.isArray(this.leagues) && this.leagues.length > 0
+      ? this.leagues
+      : [this._getLeague()];
+
+    for (let i = 0; i < leagues.length; i++) {
+      const league = leagues[i];
+      if (league === "nhl") {
+        await this._fetchNhlGames();
+      } else if (league === "nfl") {
+        await this._fetchNflGames();
+      } else {
+        await this._fetchMlbGames();
+      }
+    }
   },
 
   async _fetchMlbGames() {
@@ -35,7 +56,7 @@ module.exports = NodeHelper.create({
       const games = (json.dates && json.dates[0] && json.dates[0].games) || [];
 
       console.log(`⚾️ Sending ${games.length} MLB games to front-end.`);
-      this.sendSocketNotification("GAMES", games);
+      this._notifyGames("mlb", games);
     } catch (e) {
       console.error("🚨 MLB fetchGames failed:", e);
     }
@@ -55,7 +76,7 @@ module.exports = NodeHelper.create({
       const games = (json.dates && json.dates[0] && json.dates[0].games) || [];
 
       console.log(`🏒 Sending ${games.length} NHL games to front-end.`);
-      this.sendSocketNotification("GAMES", games);
+      this._notifyGames("nhl", games);
       return;
     } catch (e) {
       console.error("🚨 NHL fetchGames failed:", e);
@@ -65,7 +86,7 @@ module.exports = NodeHelper.create({
     try {
       const fallbackGames = await this._fetchNhlScoreboardFallback(dateIso);
       console.log(`🏒 Sending ${fallbackGames.length} NHL games to front-end (fallback).`);
-      this.sendSocketNotification("GAMES", fallbackGames);
+      this._notifyGames("nhl", fallbackGames);
     } catch (fallbackError) {
       console.error("🚨 NHL fallback fetchGames failed:", fallbackError);
     }
@@ -259,15 +280,78 @@ module.exports = NodeHelper.create({
       const games = json.events || [];
 
       console.log(`🏈 Sending ${games.length} NFL games to front-end.`);
-      this.sendSocketNotification("GAMES", games);
+      this._notifyGames("nfl", games);
     } catch (e) {
       console.error("🚨 NFL fetchGames failed:", e);
     }
   },
 
   _getLeague() {
-    const league = this.config && this.config.league ? this.config.league : "mlb";
-    return String(league).trim().toLowerCase();
+    if (Array.isArray(this.leagues) && this.leagues.length > 0) {
+      return this.leagues[0];
+    }
+    const cfg = this.config || {};
+    const source = (typeof cfg.leagues !== "undefined") ? cfg.leagues : cfg.league;
+    const leagues = this._coerceLeagueArray(source);
+    if (leagues.length > 0) return leagues[0];
+    return "mlb";
+  },
+
+  _notifyGames(league, games) {
+    const normalizedLeague = this._normalizeLeagueKey(league) || this._getLeague();
+    const payload = {
+      league: normalizedLeague,
+      games: Array.isArray(games) ? games : []
+    };
+    this.sendSocketNotification("GAMES", payload);
+  },
+
+  _normalizeLeagueKey(value) {
+    if (value == null) return null;
+    const str = String(value).trim().toLowerCase();
+    return SUPPORTED_LEAGUES.includes(str) ? str : null;
+  },
+
+  _coerceLeagueArray(input) {
+    const tokens = [];
+    const collect = (entry) => {
+      if (entry == null) return;
+      if (Array.isArray(entry)) {
+        for (let i = 0; i < entry.length; i += 1) collect(entry[i]);
+        return;
+      }
+      const str = String(entry).trim();
+      if (!str) return;
+      const parts = str.split(/[\s,]+/);
+      for (let j = 0; j < parts.length; j += 1) {
+        const part = parts[j].trim();
+        if (part) tokens.push(part);
+      }
+    };
+
+    collect(input);
+
+    const normalized = [];
+    const seen = new Set();
+    for (let k = 0; k < tokens.length; k += 1) {
+      const token = tokens[k];
+      const lower = token.toLowerCase();
+      if (lower === "all") {
+        return SUPPORTED_LEAGUES.slice();
+      }
+      if (SUPPORTED_LEAGUES.includes(lower) && !seen.has(lower)) {
+        normalized.push(lower);
+        seen.add(lower);
+      }
+    }
+    return normalized;
+  },
+
+  _resolveConfiguredLeagues() {
+    const cfg = this.config || {};
+    const source = (typeof cfg.leagues !== "undefined") ? cfg.leagues : cfg.league;
+    const leagues = this._coerceLeagueArray(source);
+    return Array.isArray(leagues) ? leagues : [];
   },
 
   _getTargetDate() {

@@ -21,6 +21,8 @@
   var DEFAULT_SCOREBOARD_COLUMNS    = 2;
   var DEFAULT_GAMES_PER_COLUMN      = 2;
 
+  var SUPPORTED_LEAGUES = ["mlb", "nhl", "nfl"];
+
   Module.register("MMM-ScoresAndStandings", {
     defaults: {
       updateIntervalScores:            60 * 1000,
@@ -61,6 +63,14 @@
     start: function () {
       this.games       = [];
       this.loadedGames = false;
+      this.gamesByLeague   = {};
+      this.loadedLeagues   = {};
+
+      this._leagueRotation    = this._resolveConfiguredLeagues();
+      if (!Array.isArray(this._leagueRotation) || this._leagueRotation.length === 0) {
+        this._leagueRotation = ["mlb"];
+      }
+      this._activeLeagueIndex = 0;
 
       this._scoreboardColumns = DEFAULT_SCOREBOARD_COLUMNS;
       this._scoreboardRows    = DEFAULT_GAMES_PER_COLUMN;
@@ -72,12 +82,13 @@
       this.rotateTimer    = null;
       this._headerStyleInjectedFor = null;
 
-      this._syncScoreboardLayout();
+      this._applyActiveLeagueState();
 
-      this.sendSocketNotification("INIT", this.config);
       var self = this;
+      var sendInit = function () { self.sendSocketNotification("INIT", self._buildHelperConfig()); };
+      sendInit();
       var refreshInterval = this._asPositiveInt(this.config.updateIntervalScores, 60 * 1000);
-      setInterval(function () { self.sendSocketNotification("INIT", self.config); }, refreshInterval);
+      setInterval(sendInit, refreshInterval);
 
       this._scheduleRotate();
     },
@@ -93,8 +104,83 @@
     },
 
     _getLeague: function () {
-      var league = this.config && this.config.league ? this.config.league : "mlb";
-      return String(league).trim().toLowerCase();
+      if (Array.isArray(this._leagueRotation) && this._leagueRotation.length > 0) {
+        var idx = (typeof this._activeLeagueIndex === "number") ? this._activeLeagueIndex : 0;
+        if (idx < 0 || idx >= this._leagueRotation.length) idx = 0;
+        return this._leagueRotation[idx];
+      }
+      var leagues = this._resolveConfiguredLeagues();
+      if (leagues.length > 0) return leagues[0];
+      return "mlb";
+    },
+
+    _normalizeLeagueKey: function (value) {
+      if (value == null) return null;
+      var str = String(value).trim().toLowerCase();
+      return (SUPPORTED_LEAGUES.indexOf(str) !== -1) ? str : null;
+    },
+
+    _coerceLeagueArray: function (input) {
+      var tokens = [];
+      var collect = function (entry) {
+        if (entry == null) return;
+        if (Array.isArray(entry)) {
+          for (var i = 0; i < entry.length; i++) collect(entry[i]);
+          return;
+        }
+        var str = String(entry).trim();
+        if (!str) return;
+        var parts = str.split(/[\s,]+/);
+        for (var j = 0; j < parts.length; j++) {
+          var part = parts[j].trim();
+          if (part) tokens.push(part);
+        }
+      };
+      collect(input);
+
+      var normalized = [];
+      var seen = {};
+      for (var k = 0; k < tokens.length; k++) {
+        var token = tokens[k];
+        var lower = token.toLowerCase();
+        if (lower === "all") {
+          return SUPPORTED_LEAGUES.slice();
+        }
+        if (SUPPORTED_LEAGUES.indexOf(lower) !== -1 && !seen[lower]) {
+          normalized.push(lower);
+          seen[lower] = true;
+        }
+      }
+      return normalized;
+    },
+
+    _resolveConfiguredLeagues: function () {
+      var cfg = this.config || {};
+      var source = (typeof cfg.leagues !== "undefined") ? cfg.leagues : cfg.league;
+      var leagues = this._coerceLeagueArray(source);
+      return Array.isArray(leagues) ? leagues : [];
+    },
+
+    _buildHelperConfig: function () {
+      var leagues = this._resolveConfiguredLeagues();
+      if (!Array.isArray(leagues) || leagues.length === 0) leagues = ["mlb"];
+      var payload = Object.assign({}, this.config);
+      payload.leagues = leagues.slice();
+      payload.league  = leagues[0];
+      payload.activeLeague = this._getLeague();
+      return payload;
+    },
+
+    _applyActiveLeagueState: function () {
+      this._syncScoreboardLayout();
+      var league = this._getLeague();
+      var byLeague = this.gamesByLeague || {};
+      var storedGames = byLeague[league];
+      this.games = Array.isArray(storedGames) ? storedGames : [];
+      var loaded = this.loadedLeagues || {};
+      this.loadedGames = !!loaded[league];
+      this.totalGamePages = Math.max(1, Math.ceil(this.games.length / this._gamesPerPage));
+      if (this.currentScreen >= this.totalGamePages) this.currentScreen = 0;
     },
 
     _getHighlightedTeamsConfig: function () {
@@ -161,26 +247,111 @@
     },
 
     _scheduleRotate: function () {
-      var total = Math.max(1, this.totalGamePages);
       var delay = this._asPositiveInt(this.config.rotateIntervalScores, 15 * 1000);
 
       var self = this;
       clearTimeout(this.rotateTimer);
       this.rotateTimer = setTimeout(function () {
-        self.currentScreen = (self.currentScreen + 1) % total;
+        self._advanceRotation();
         self.updateDom(300);
         self._scheduleRotate();
       }, delay);
     },
 
+    _advanceRotation: function () {
+      var total = Math.max(1, this.totalGamePages);
+      if (this.currentScreen + 1 < total) {
+        this.currentScreen += 1;
+        return;
+      }
+
+      this.currentScreen = 0;
+
+      if (!Array.isArray(this._leagueRotation) || this._leagueRotation.length <= 1) {
+        return;
+      }
+
+      var idx = (typeof this._activeLeagueIndex === "number") ? this._activeLeagueIndex : 0;
+      idx = (idx + 1) % this._leagueRotation.length;
+      this._activeLeagueIndex = idx;
+      this._applyActiveLeagueState();
+    },
+
+    _toNumberOrNull: function (value) {
+      if (value == null) return null;
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+
+      var str = String(value).trim();
+      if (!str) return null;
+
+      var num = Number(str);
+      if (Number.isFinite(num)) return num;
+
+      var intVal = parseInt(str, 10);
+      return Number.isFinite(intVal) ? intVal : null;
+    },
+
+    _firstNumber: function () {
+      for (var i = 0; i < arguments.length; i++) {
+        var candidate = this._toNumberOrNull(arguments[i]);
+        if (candidate != null) return candidate;
+      }
+      return null;
+    },
+
+    _metricsContainValues: function (metrics) {
+      if (!Array.isArray(metrics)) return false;
+      for (var i = 0; i < metrics.length; i++) {
+        var metric = metrics[i];
+        if (metric == null) continue;
+        if (typeof metric === "object" && !Array.isArray(metric)) {
+          if (metric.value != null && metric.value !== "") return true;
+        } else if (metric !== "") {
+          return true;
+        }
+      }
+      return false;
+    },
+
+    _rowsContainValues: function (rows) {
+      if (!Array.isArray(rows)) return false;
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        if (!row) continue;
+        if (this._metricsContainValues(row.metrics)) return true;
+      }
+      return false;
+    },
+
     socketNotificationReceived: function (notification, payload) {
       try {
         if (notification === "GAMES") {
-          this.loadedGames    = true;
-          this.games          = Array.isArray(payload) ? payload : [];
-          this._syncScoreboardLayout();
-          this.totalGamePages = Math.max(1, Math.ceil(this.games.length / this._gamesPerPage));
-          if (this.currentScreen >= this.totalGamePages) this.currentScreen = 0;
+          var league = null;
+          var games = [];
+
+          if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+            league = this._normalizeLeagueKey(payload.league);
+            if (Array.isArray(payload.games)) games = payload.games;
+          } else if (Array.isArray(payload)) {
+            games = payload;
+          }
+
+          if (!league) league = this._getLeague();
+
+          if (!this.gamesByLeague) this.gamesByLeague = {};
+          this.gamesByLeague[league] = games;
+
+          if (!this.loadedLeagues) this.loadedLeagues = {};
+          this.loadedLeagues[league] = true;
+
+          if (!Array.isArray(this._leagueRotation) || this._leagueRotation.length === 0) {
+            this._leagueRotation = [league];
+            this._activeLeagueIndex = 0;
+          } else if (this._leagueRotation.indexOf(league) === -1) {
+            this._leagueRotation.push(league);
+          }
+
+          this._applyActiveLeagueState();
           this.updateDom();
         }
       } catch (e) {
@@ -541,6 +712,9 @@
       var homeShots = lsTeams.home && typeof lsTeams.home.shotsOnGoal !== "undefined"
         ? lsTeams.home.shotsOnGoal : null;
 
+      awayShots = this._firstNumber(awayShots, lsTeams.away && lsTeams.away.sog, away && away.shotsOnGoal);
+      homeShots = this._firstNumber(homeShots, lsTeams.home && lsTeams.home.sog, home && home.shotsOnGoal);
+
       var rows = [];
       var pair = [away, home];
       for (var i = 0; i < pair.length; i++) {
@@ -557,8 +731,9 @@
           isLoser = !isWinner;
         }
 
+        var goals = this._firstNumber(entry.score, entry.goals, entry.team && entry.team.score);
         var metrics = [
-          (typeof entry.score !== "undefined") ? entry.score : null,
+          goals,
           (i === 0 ? awayShots : homeShots)
         ];
 
@@ -571,6 +746,8 @@
           metrics: metrics
         });
       }
+
+      if (!showVals && this._rowsContainValues(rows)) showVals = true;
 
       return this._createScoreboardCard({
         league: league,
@@ -642,8 +819,7 @@
         var abbr = this._abbrForTeam(team, league);
         var highlight = this._isHighlighted(abbr);
 
-        var scoreNum = (typeof entry.score !== "undefined" && entry.score !== null) ? parseInt(entry.score, 10) : null;
-        if (!Number.isFinite(scoreNum)) scoreNum = null;
+        var scoreNum = this._firstNumber(entry.score, entry.points, entry.team && entry.team.score);
 
         var lineScores = Array.isArray(entry.linescores) ? entry.linescores : [];
         var quarters = [null, null, null, null];
@@ -651,7 +827,12 @@
           var ls = lineScores[lsIdx];
           var period = ls && ls.period;
           if (period >= 1 && period <= 4) {
-            quarters[period - 1] = (typeof ls.value !== "undefined") ? ls.value : null;
+            quarters[period - 1] = this._firstNumber(
+              ls.value,
+              ls.displayValue,
+              ls.score,
+              ls.points
+            );
           }
         }
 
@@ -660,11 +841,9 @@
 
         var otherScore = null;
         if (idx === 0 && home) {
-          var hs = (typeof home.score !== "undefined" && home.score !== null) ? parseInt(home.score, 10) : null;
-          if (Number.isFinite(hs)) otherScore = hs;
+          otherScore = this._firstNumber(home.score, home.points, home.team && home.team.score);
         } else if (idx === 1 && away) {
-          var as = (typeof away.score !== "undefined" && away.score !== null) ? parseInt(away.score, 10) : null;
-          if (Number.isFinite(as)) otherScore = as;
+          otherScore = this._firstNumber(away.score, away.points, away.team && away.team.score);
         }
 
         var isLoser = false;
@@ -681,6 +860,8 @@
           metrics: metrics
         });
       }
+
+      if (!showVals && this._rowsContainValues(rows)) showVals = true;
 
       return this._createScoreboardCard({
         league: league,
