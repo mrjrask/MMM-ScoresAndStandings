@@ -90,6 +90,7 @@
 
 .games-matrix-cell.league-nfl {
   --scoreboard-card-width-base: var(--scoreboard-card-width-base-nfl);
+  --scoreboard-card-width: calc(var(--scoreboard-card-width-base-nfl) * var(--box-scale));
 }
 
 .games-matrix-cell.empty::before {
@@ -134,6 +135,7 @@
 
 .scoreboard-card.league-nfl {
   --scoreboard-card-width-base: var(--scoreboard-card-width-base-nfl);
+  --scoreboard-card-width: calc(var(--scoreboard-card-width-base-nfl) * var(--box-scale));
 }
 
 .scoreboard-card .scoreboard-header,
