@@ -75,9 +75,13 @@ module.exports = NodeHelper.create({
       const json = await res.json();
       const games = (json.dates && json.dates[0] && json.dates[0].games) || [];
 
-      console.log(`🏒 Sending ${games.length} NHL games to front-end.`);
-      this._notifyGames("nhl", games);
-      return;
+      if (Array.isArray(games) && games.length > 0) {
+        console.log(`🏒 Sending ${games.length} NHL games to front-end.`);
+        this._notifyGames("nhl", games);
+        return;
+      }
+
+      console.info(`ℹ️ Primary NHL stats API returned no games for ${dateIso}; attempting scoreboard fallback.`);
     } catch (e) {
       console.error("🚨 NHL fetchGames failed:", e);
       console.info(`ℹ️ Falling back to api-web NHL scoreboard endpoint for ${dateIso}`);
@@ -153,10 +157,11 @@ module.exports = NodeHelper.create({
       };
     }
 
-    const abbr = (team.teamAbbrev || team.abbrev || team.triCode || team.teamCode || team.shortName || "").toString().toUpperCase();
-    const place = (team.placeName || team.locationName || team.city || team.market || "") + "";
-    const name = (team.teamName || team.nickName || team.name || "") + "";
-    const shortName = (team.shortName || name || abbr || "") + "";
+    const abbrRaw = this._nhlScoreboardText(team.teamAbbrev || team.abbrev || team.triCode || team.teamCode || team.shortName || "");
+    const abbr = abbrRaw ? abbrRaw.toUpperCase() : "";
+    const place = this._nhlScoreboardText(team.placeName || team.locationName || team.city || team.market || "");
+    const name = this._nhlScoreboardText(team.teamName || team.nickName || team.name || "");
+    const shortName = this._nhlScoreboardText(team.shortName || name || abbr || "");
     const display = (place && name) ? `${place} ${name}`.trim() : (name || place || abbr || "");
 
     return {
@@ -172,6 +177,42 @@ module.exports = NodeHelper.create({
       score: this._asNumberOrNull((typeof team.score !== "undefined") ? team.score : team.goals),
       shotsOnGoal: this._asNumberOrNull(team.sog != null ? team.sog : team.shotsOnGoal)
     };
+  },
+
+  _nhlScoreboardText(value) {
+    if (value == null) return "";
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "number" || typeof value === "boolean") {
+      return String(value);
+    }
+
+    if (Array.isArray(value)) {
+      for (let i = 0; i < value.length; i += 1) {
+        const text = this._nhlScoreboardText(value[i]);
+        if (text) return text;
+      }
+      return "";
+    }
+
+    if (typeof value === "object") {
+      const preferredKeys = ["default", "en", "en_US", "en-us", "english", "text", "name"]; // scoreboard locales vary
+      for (let i = 0; i < preferredKeys.length; i += 1) {
+        const key = preferredKeys[i];
+        if (Object.prototype.hasOwnProperty.call(value, key)) {
+          const text = this._nhlScoreboardText(value[key]);
+          if (text) return text;
+        }
+      }
+
+      const keys = Object.keys(value);
+      for (let j = 0; j < keys.length; j += 1) {
+        const text = this._nhlScoreboardText(value[keys[j]]);
+        if (text) return text;
+      }
+      return "";
+    }
+
+    return String(value);
   },
 
   _nhlScoreboardStatus(game, periodDescriptor) {
