@@ -62,10 +62,10 @@ Add to your `config/config.js`:
     // Refresh
     updateIntervalScores: 60 * 1000,
 
-    league: "mlb",             // "mlb", "nhl", "nfl", array of leagues, or "all"
+    league: "mlb",             // "mlb", "nhl", "nfl", "nba", array of leagues, or "all"
 
     // Scoreboard layout
-    scoreboardColumns: null,  // columns per page (auto: 2 for MLB/NHL, 4 for NFL)
+    scoreboardColumns: null,  // columns per page (auto: 2 for MLB/NHL, 4 for NFL/NBA)
     gamesPerColumn: 2,        // games stacked in each column
     // (optional) gamesPerPage: 8, // override derived columns × gamesPerColumn
     layoutScale: 0.9,          // shrink (<1) or grow (>1) everything at once (clamped 0.6 – 1.4)
@@ -76,6 +76,7 @@ Add to your `config/config.js`:
     highlightedTeams_mlb: ["CUBS"], // string or array of 3–5 letter abbrs (per league)
     highlightedTeams_nhl: [],
     highlightedTeams_nfl: [],
+    highlightedTeams_nba: [],
     showTitle: true,
     useTimesSquareFont: true,   // set false to use the MagicMirror default font
 
@@ -86,11 +87,11 @@ Add to your `config/config.js`:
 ```
 
 **Notes**
-- **League**: set `league` to `"nhl"` or `"nfl"` for hockey or football scoreboards. Use `"all"` (or provide an array via `league` or `leagues`) to rotate through every supported league automatically.
+- **League**: set `league` to `"nhl"`, `"nfl"`, or `"nba"` for hockey, football, or basketball scoreboards. Use `"all"` (or provide an array via `league` or `leagues`) to rotate through every supported league automatically.
 - **Header width** matches `maxWidth` and stays in the default MM font (Roboto Condensed).
-- **Highlighted teams** accept a single string `"CUBS"` or an array like `["CUBS","NYY"]` for the league-specific settings `highlightedTeams_mlb`, `highlightedTeams_nhl`, and `highlightedTeams_nfl`.
+- **Highlighted teams** accept a single string `"CUBS"` or an array like `["CUBS","NYY"]` for the league-specific settings `highlightedTeams_mlb`, `highlightedTeams_nhl`, `highlightedTeams_nfl`, and `highlightedTeams_nba`.
 - **layoutScale** is the quickest way to fix oversize boxes—values below `1` compact the layout.
-- The default scoreboard layout shows **two columns and up to four games** for MLB/NHL, and **four columns** for NFL. Adjust `scoreboardColumns`, `gamesPerColumn`, or `gamesPerPage` to taste.
+- The default scoreboard layout shows **two columns and up to four games** for MLB/NHL, and **four columns** for NFL/NBA. Adjust `scoreboardColumns`, `gamesPerColumn`, or `gamesPerPage` to taste.
 
 ---
 
@@ -108,8 +109,10 @@ MMM-ScoresAndStandings/
    │  └─ ATL.png (etc.)
    ├─ nhl/
    │  └─ BOS.png (etc.)
-   └─ nfl/
-      └─ kc.png (etc., lowercase filenames)
+   ├─ nfl/
+   │  └─ kc.png (etc., lowercase filenames)
+   └─ nba/
+      └─ ATL.png (etc.)
 ```
 
 - **Images**: PNGs named by **abbr** (e.g., `CUBS.png`, `NYR.png`, `kc.png`) under `images/<league>/`.
