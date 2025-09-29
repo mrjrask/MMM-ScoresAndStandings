@@ -66,12 +66,18 @@ module.exports = NodeHelper.create({
     const { dateIso } = this._getTargetDate();
 
     let delivered = false;
+    let sent = false;
 
     try {
       const scoreboardGames = await this._fetchNhlScoreboardGames(dateIso);
-      if (scoreboardGames.length > 0) {
-        console.log(`🏒 Sending ${scoreboardGames.length} NHL games to front-end (scoreboard API).`);
-        this._notifyGames("nhl", scoreboardGames);
+      const games = Array.isArray(scoreboardGames) ? scoreboardGames : [];
+      const count = games.length;
+
+      this._notifyGames("nhl", games);
+      sent = true;
+
+      if (count > 0) {
+        console.log(`🏒 Sending ${count} NHL games to front-end (scoreboard API).`);
         delivered = true;
       } else {
         console.info(`ℹ️ NHL scoreboard API returned no games for ${dateIso}; trying legacy stats API.`);
@@ -96,6 +102,7 @@ module.exports = NodeHelper.create({
           console.log(`🏒 Sending ${games.length} NHL games to front-end (legacy stats API).`);
           this._notifyGames("nhl", games);
           delivered = true;
+          sent = true;
         } else {
           console.info(`ℹ️ Legacy NHL stats API returned no games for ${dateIso}; trying stats REST fallback.`);
         }
@@ -112,12 +119,18 @@ module.exports = NodeHelper.create({
           console.log(`🏒 Sending ${restGames.length} NHL games to front-end (stats REST fallback).`);
           this._notifyGames("nhl", restGames);
           delivered = true;
+          sent = true;
         } else {
           console.warn(`⚠️ NHL stats REST fallback returned no games for ${dateIso}.`);
         }
       } catch (restError) {
         console.error("🚨 NHL stats REST fallback failed:", restError);
       }
+    }
+
+    if (!delivered && !sent) {
+      console.warn(`⚠️ Unable to fetch NHL games for ${dateIso}; sending empty schedule to front-end.`);
+      this._notifyGames("nhl", []);
     }
   },
 
