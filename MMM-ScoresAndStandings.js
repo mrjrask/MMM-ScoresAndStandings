@@ -18,9 +18,10 @@
   };
 
   // Scoreboard layout defaults (can be overridden via config)
-  var DEFAULT_SCOREBOARD_COLUMNS    = 2;
-  var DEFAULT_SCOREBOARD_COLUMNS_NFL = 4;
-  var DEFAULT_GAMES_PER_COLUMN      = 2;
+  var DEFAULT_SCOREBOARD_COLUMNS        = 2;
+  var DEFAULT_SCOREBOARD_COLUMNS_NFL    = 4;
+  var DEFAULT_GAMES_PER_COLUMN          = 2;
+  var DEFAULT_GAMES_PER_COLUMN_NFL      = 4;
 
   var SUPPORTED_LEAGUES = ["mlb", "nhl", "nfl"];
 
@@ -74,7 +75,7 @@
       this._activeLeagueIndex = 0;
 
       this._scoreboardColumns = this._defaultColumnsForLeague();
-      this._scoreboardRows    = DEFAULT_GAMES_PER_COLUMN;
+      this._scoreboardRows    = this._defaultRowsForLeague();
       this._gamesPerPage      = this._scoreboardColumns * this._scoreboardRows;
       this._layoutScale       = 1;
 
@@ -224,9 +225,16 @@
       return DEFAULT_SCOREBOARD_COLUMNS;
     },
 
+    _defaultRowsForLeague: function () {
+      var league = this._getLeague();
+      if (league === "nfl") return DEFAULT_GAMES_PER_COLUMN_NFL;
+      return DEFAULT_GAMES_PER_COLUMN;
+    },
+
     _syncScoreboardLayout: function () {
-      var columns   = this._asPositiveInt(this.config.scoreboardColumns, this._defaultColumnsForLeague());
-      var perColumn = this._asPositiveInt(this.config.gamesPerColumn, DEFAULT_GAMES_PER_COLUMN);
+      var columns       = this._asPositiveInt(this.config.scoreboardColumns, this._defaultColumnsForLeague());
+      var defaultRows   = this._defaultRowsForLeague();
+      var perColumn     = this._asPositiveInt(this.config.gamesPerColumn, defaultRows);
 
       var gamesPerPage = columns * perColumn;
 
