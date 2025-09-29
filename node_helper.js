@@ -64,43 +64,43 @@ module.exports = NodeHelper.create({
 
   async _fetchNhlGames() {
     const { dateIso } = this._getTargetDate();
-    const primaryUrl = `https://statsapi.web.nhl.com/api/v1/schedule?date=${dateIso}&expand=schedule.linescore`;
 
     let delivered = false;
 
     try {
-      const res  = await fetch(primaryUrl);
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status} ${res.statusText}`);
-      }
-
-      const json = await res.json();
-      const games = (json.dates && json.dates[0] && json.dates[0].games) || [];
-
-      if (Array.isArray(games) && games.length > 0) {
-        console.log(`🏒 Sending ${games.length} NHL games to front-end.`);
-        this._notifyGames("nhl", games);
+      const scoreboardGames = await this._fetchNhlScoreboardGames(dateIso);
+      if (scoreboardGames.length > 0) {
+        console.log(`🏒 Sending ${scoreboardGames.length} NHL games to front-end (scoreboard API).`);
+        this._notifyGames("nhl", scoreboardGames);
         delivered = true;
       } else {
-        console.info(`ℹ️ Primary NHL stats API returned no games for ${dateIso}; attempting scoreboard fallback.`);
+        console.info(`ℹ️ NHL scoreboard API returned no games for ${dateIso}; trying legacy stats API.`);
       }
-    } catch (e) {
-      console.error("🚨 NHL fetchGames failed:", e);
-      console.info(`ℹ️ Falling back to api-web NHL scoreboard endpoint for ${dateIso}`);
+    } catch (scoreboardError) {
+      console.error("🚨 NHL scoreboard API fetchGames failed:", scoreboardError);
+      console.info(`ℹ️ Attempting legacy NHL stats API for ${dateIso}`);
     }
 
     if (!delivered) {
+      const legacyUrl = `https://statsapi.web.nhl.com/api/v1/schedule?date=${dateIso}&expand=schedule.linescore`;
       try {
-        const fallbackGames = await this._fetchNhlScoreboardFallback(dateIso);
-        if (fallbackGames.length > 0) {
-          console.log(`🏒 Sending ${fallbackGames.length} NHL games to front-end (scoreboard fallback).`);
-          this._notifyGames("nhl", fallbackGames);
+        const res  = await fetch(legacyUrl);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status} ${res.statusText}`);
+        }
+
+        const json = await res.json();
+        const games = (json.dates && json.dates[0] && json.dates[0].games) || [];
+
+        if (Array.isArray(games) && games.length > 0) {
+          console.log(`🏒 Sending ${games.length} NHL games to front-end (legacy stats API).`);
+          this._notifyGames("nhl", games);
           delivered = true;
         } else {
-          console.info(`ℹ️ NHL scoreboard fallback returned no games for ${dateIso}; trying stats REST fallback.`);
+          console.info(`ℹ️ Legacy NHL stats API returned no games for ${dateIso}; trying stats REST fallback.`);
         }
-      } catch (fallbackError) {
-        console.error("🚨 NHL scoreboard fallback fetchGames failed:", fallbackError);
+      } catch (legacyError) {
+        console.error("🚨 Legacy NHL stats API fetchGames failed:", legacyError);
         console.info(`ℹ️ Attempting NHL stats REST fallback for ${dateIso}`);
       }
     }
@@ -121,7 +121,7 @@ module.exports = NodeHelper.create({
     }
   },
 
-  async _fetchNhlScoreboardFallback(dateIso) {
+  async _fetchNhlScoreboardGames(dateIso) {
     const fallbackUrl = `https://api-web.nhle.com/v1/scoreboard/${dateIso}`;
     const res = await fetch(fallbackUrl);
     if (!res.ok) {
@@ -129,15 +129,76 @@ module.exports = NodeHelper.create({
     }
 
     const json = await res.json();
-    const rawGames = Array.isArray(json.games) ? json.games : [];
+    const rawGames = this._collectNhlScoreboardGames(json, dateIso);
     const normalized = [];
 
-    for (let i = 0; i < rawGames.length; i++) {
+    for (let i = 0; i < rawGames.length; i += 1) {
       const mapped = this._normalizeNhlScoreboardGame(rawGames[i]);
       if (mapped) normalized.push(mapped);
     }
 
     return normalized;
+  },
+
+  _collectNhlScoreboardGames(json, dateIso) {
+    if (!json) return [];
+
+    const targetDate = (dateIso || "").slice(0, 10);
+    const games = [];
+    const seen = new Set();
+
+    const pushGames = (entries) => {
+      if (!Array.isArray(entries)) return;
+      for (let i = 0; i < entries.length; i += 1) {
+        const game = entries[i];
+        if (!game) continue;
+
+        if (targetDate) {
+          const gameDate = (game.gameDate || game.startTimeUTC || "").slice(0, 10);
+          if (gameDate && gameDate !== targetDate) continue;
+        }
+
+        const key = game.id || game.gamePk || game.gameId;
+        const keyStr = (key != null) ? String(key) : null;
+        if (keyStr && seen.has(keyStr)) continue;
+        if (keyStr) seen.add(keyStr);
+
+        games.push(game);
+      }
+    };
+
+    if (Array.isArray(json.games)) {
+      pushGames(json.games);
+    }
+
+    if (Array.isArray(json.gameWeek)) {
+      for (let i = 0; i < json.gameWeek.length; i += 1) {
+        const day = json.gameWeek[i] || {};
+        if (targetDate) {
+          const dayDate = (day.date || day.gameDate || "").slice(0, 10);
+          if (dayDate && dayDate !== targetDate) continue;
+        }
+        pushGames(day.games);
+      }
+    }
+
+    if (Array.isArray(json.dates)) {
+      for (let j = 0; j < json.dates.length; j += 1) {
+        const bucket = json.dates[j] || {};
+        if (targetDate) {
+          const bucketDate = (bucket.date || bucket.gameDate || "").slice(0, 10);
+          if (bucketDate && bucketDate !== targetDate) continue;
+        }
+        pushGames(bucket.games);
+      }
+    }
+
+    if (json.scoreboard && typeof json.scoreboard === "object" && json.scoreboard !== json) {
+      const nested = this._collectNhlScoreboardGames(json.scoreboard, dateIso);
+      pushGames(nested);
+    }
+
+    return games;
   },
 
   async _fetchNhlStatsRestGames(dateIso) {
