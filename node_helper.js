@@ -1,13 +1,24 @@
 // node_helper.js
 const NodeHelper = require("node_helper");
 const fetch      = global.fetch;
+const dns        = require("dns");
 
 const SUPPORTED_LEAGUES = ["mlb", "nhl", "nfl"];
+
+const DNS_LOOKUP = (dns && dns.promises && typeof dns.promises.lookup === "function")
+  ? (host) => dns.promises.lookup(host)
+  : (host) => new Promise((resolve, reject) => {
+    dns.lookup(host, (err, address, family) => {
+      if (err) reject(err);
+      else resolve({ address, family });
+    });
+  });
 
 module.exports = NodeHelper.create({
   start() {
     console.log("🛰️ MMM-ScoresAndStandings helper started");
     this.fetchTimer = null;
+    this._nhlStatsDnsStatus = { available: null, checkedAt: 0 };
   },
 
   socketNotificationReceived(notification, payload) {
@@ -64,64 +75,73 @@ module.exports = NodeHelper.create({
 
   async _fetchNhlGames() {
     const { dateIso } = this._getTargetDate();
+    const scoreboardDateIso = this._getNhlScoreboardDate();
+    const targetDate = scoreboardDateIso || dateIso;
 
     let delivered = false;
     let sent = false;
 
+    let statsApiAvailable = false;
     try {
-      const scoreboardGames = await this._fetchNhlScoreboardGames(dateIso);
-      const games = Array.isArray(scoreboardGames) ? scoreboardGames : [];
-      const count = games.length;
-
-      this._notifyGames("nhl", games);
-      sent = true;
-
-      if (count > 0) {
-        console.log(`🏒 Sending ${count} NHL games to front-end (scoreboard API).`);
-        delivered = true;
-      } else {
-        console.info(`ℹ️ NHL scoreboard API returned no games for ${dateIso}; trying legacy stats API.`);
-      }
-    } catch (scoreboardError) {
-      console.error("🚨 NHL scoreboard API fetchGames failed:", scoreboardError);
-      console.info(`ℹ️ Attempting legacy NHL stats API for ${dateIso}`);
+      statsApiAvailable = await this._nhlStatsApiAvailable();
+    } catch (availabilityError) {
+      console.warn("⚠️ Unable to verify NHL stats API availability:", availabilityError);
     }
 
-    if (!delivered) {
-      const legacyUrl = `https://statsapi.web.nhl.com/api/v1/schedule?date=${dateIso}&expand=schedule.linescore`;
+    if (statsApiAvailable) {
       try {
-        const res  = await fetch(legacyUrl, { headers: this._nhlRequestHeaders() });
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status} ${res.statusText}`);
-        }
+        const statsGames = await this._fetchNhlStatsGames(targetDate);
+        const games = Array.isArray(statsGames) ? statsGames : [];
+        const count = games.length;
 
-        const json = await res.json();
-        const games = (json.dates && json.dates[0] && json.dates[0].games) || [];
+        this._notifyGames("nhl", games);
+        sent = true;
 
-        if (Array.isArray(games) && games.length > 0) {
-          console.log(`🏒 Sending ${games.length} NHL games to front-end (legacy stats API).`);
-          this._notifyGames("nhl", games);
+        if (count > 0) {
+          console.log(`🏒 Sending ${count} NHL games to front-end (stats API).`);
           delivered = true;
-          sent = true;
         } else {
-          console.info(`ℹ️ Legacy NHL stats API returned no games for ${dateIso}; trying stats REST fallback.`);
+          console.info(`ℹ️ NHL stats API returned no games for ${targetDate}; trying scoreboard API.`);
         }
-      } catch (legacyError) {
-        console.error("🚨 Legacy NHL stats API fetchGames failed:", legacyError);
-        console.info(`ℹ️ Attempting NHL stats REST fallback for ${dateIso}`);
+      } catch (statsError) {
+        console.error("🚨 NHL stats API fetchGames failed:", statsError);
+        console.info(`ℹ️ Attempting NHL scoreboard API for ${targetDate}`);
+      }
+    } else {
+      console.info("ℹ️ NHL stats API appears unreachable; using scoreboard fallback.");
+    }
+
+    if (!delivered) {
+      try {
+        const scoreboardGames = await this._fetchNhlScoreboardGames(targetDate);
+        const games = Array.isArray(scoreboardGames) ? scoreboardGames : [];
+        const count = games.length;
+
+        this._notifyGames("nhl", games);
+        sent = true;
+
+        if (count > 0) {
+          console.log(`🏒 Sending ${count} NHL games to front-end (scoreboard API).`);
+          delivered = true;
+        } else {
+          console.info(`ℹ️ NHL scoreboard API returned no games for ${targetDate}; trying stats REST fallback.`);
+        }
+      } catch (scoreboardError) {
+        console.error("🚨 NHL scoreboard API fetchGames failed:", scoreboardError);
+        console.info(`ℹ️ Attempting NHL stats REST fallback for ${targetDate}`);
       }
     }
 
     if (!delivered) {
       try {
-        const restGames = await this._fetchNhlStatsRestGames(dateIso);
+        const restGames = await this._fetchNhlStatsRestGames(targetDate);
         if (restGames.length > 0) {
           console.log(`🏒 Sending ${restGames.length} NHL games to front-end (stats REST fallback).`);
           this._notifyGames("nhl", restGames);
           delivered = true;
           sent = true;
         } else {
-          console.warn(`⚠️ NHL stats REST fallback returned no games for ${dateIso}.`);
+          console.warn(`⚠️ NHL stats REST fallback returned no games for ${targetDate}.`);
         }
       } catch (restError) {
         console.error("🚨 NHL stats REST fallback failed:", restError);
@@ -129,28 +149,101 @@ module.exports = NodeHelper.create({
     }
 
     if (!delivered && !sent) {
-      console.warn(`⚠️ Unable to fetch NHL games for ${dateIso}; sending empty schedule to front-end.`);
+      console.warn(`⚠️ Unable to fetch NHL games for ${targetDate}; sending empty schedule to front-end.`);
       this._notifyGames("nhl", []);
     }
   },
 
-  async _fetchNhlScoreboardGames(dateIso) {
-    const fallbackUrl = `https://api-web.nhle.com/v1/scoreboard/${dateIso}`;
-    const res = await fetch(fallbackUrl, { headers: this._nhlRequestHeaders() });
+  async _nhlStatsApiAvailable() {
+    const status = this._nhlStatsDnsStatus || {};
+    const now = Date.now();
+    const ttl = 5 * 60 * 1000; // cache DNS reachability for 5 minutes
+    if (status.checkedAt && (now - status.checkedAt) < ttl && typeof status.available === "boolean") {
+      return status.available;
+    }
+
+    const host = "statsapi.web.nhl.com";
+    const deadline = now + 4000;
+    let available = false;
+    let lastError = null;
+
+    while (!available && Date.now() < deadline) {
+      try {
+        await DNS_LOOKUP(host);
+        available = true;
+      } catch (err) {
+        lastError = err;
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+    }
+
+    if (!available && lastError) {
+      console.debug(`🔍 DNS lookup for ${host} failed:`, lastError.message || lastError);
+    }
+
+    this._nhlStatsDnsStatus = { available, checkedAt: now };
+    return available;
+  },
+
+  async _fetchNhlStatsGames(dateIso) {
+    const url = `https://statsapi.web.nhl.com/api/v1/schedule?date=${dateIso}&expand=schedule.linescore,schedule.teams`;
+    const res  = await fetch(url, { headers: this._nhlRequestHeaders() });
     if (!res.ok) {
       throw new Error(`HTTP ${res.status} ${res.statusText}`);
     }
 
     const json = await res.json();
-    const rawGames = this._collectNhlScoreboardGames(json, dateIso);
-    const normalized = [];
-
-    for (let i = 0; i < rawGames.length; i += 1) {
-      const mapped = this._normalizeNhlScoreboardGame(rawGames[i]);
-      if (mapped) normalized.push(mapped);
+    const dates = Array.isArray(json.dates) ? json.dates : [];
+    const games = [];
+    for (let i = 0; i < dates.length; i += 1) {
+      const bucket = dates[i];
+      if (!bucket || !Array.isArray(bucket.games)) continue;
+      for (let j = 0; j < bucket.games.length; j += 1) {
+        games.push(bucket.games[j]);
+      }
     }
 
-    return normalized;
+    return this._hydrateNhlGames(games);
+  },
+
+  async _fetchNhlScoreboardGames(dateIso) {
+    const headers = this._nhlRequestHeaders({
+      "x-nhl-stats-origin": "https://www.nhl.com",
+      "x-nhl-stats-referer": "https://www.nhl.com"
+    });
+
+    const urls = [
+      `https://api-web.nhle.com/v1/scoreboard/${dateIso}?site=en_nhl`,
+      `https://api-web.nhle.com/v1/scoreboard/now?site=en_nhl`
+    ];
+
+    for (let u = 0; u < urls.length; u += 1) {
+      const fallbackUrl = urls[u];
+      try {
+        const res = await fetch(fallbackUrl, { headers });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status} ${res.statusText}`);
+        }
+
+        const json = await res.json();
+        const rawGames = this._collectNhlScoreboardGames(json, dateIso);
+        const normalized = [];
+
+        for (let i = 0; i < rawGames.length; i += 1) {
+          const mapped = this._normalizeNhlScoreboardGame(rawGames[i]);
+          if (mapped) normalized.push(mapped);
+        }
+
+        const hydrated = this._hydrateNhlGames(normalized);
+        if (hydrated.length > 0 || u === urls.length - 1) {
+          return hydrated;
+        }
+      } catch (err) {
+        if (u === urls.length - 1) throw err;
+      }
+    }
+
+    return [];
   },
 
   _collectNhlScoreboardGames(json, dateIso) {
@@ -214,18 +307,27 @@ module.exports = NodeHelper.create({
     return games;
   },
 
-  _nhlRequestHeaders() {
-    return {
+  _nhlRequestHeaders(extra) {
+    const base = {
       "User-Agent": "Mozilla/5.0 (MMM-ScoresAndStandings)",
       Accept: "application/json",
+      "Accept-Language": "en-US,en;q=0.9",
       Referer: "https://www.nhl.com/",
-      Origin: "https://www.nhl.com"
+      Origin: "https://www.nhl.com",
+      Pragma: "no-cache",
+      "Cache-Control": "no-cache"
     };
+
+    if (!extra) return base;
+    return Object.assign({}, base, extra);
   },
 
   async _fetchNhlStatsRestGames(dateIso) {
     const restUrl = `https://api.nhle.com/stats/rest/en/schedule?cayenneExp=gameDate=%22${dateIso}%22`;
-    const res = await fetch(restUrl, { headers: this._nhlRequestHeaders() });
+    const res = await fetch(restUrl, { headers: this._nhlRequestHeaders({
+      "x-nhl-stats-origin": "https://www.nhl.com",
+      "x-nhl-stats-referer": "https://www.nhl.com"
+    }) });
     if (!res.ok) {
       throw new Error(`HTTP ${res.status} ${res.statusText}`);
     }
@@ -239,7 +341,147 @@ module.exports = NodeHelper.create({
       if (mapped) normalized.push(mapped);
     }
 
+    return this._hydrateNhlGames(normalized);
+  },
+
+  _hydrateNhlGames(games) {
+    if (!Array.isArray(games)) return [];
+
+    const hydrated = [];
+    for (let i = 0; i < games.length; i += 1) {
+      const game = this._hydrateNhlGame(games[i]);
+      if (game) hydrated.push(game);
+    }
+
+    hydrated.sort((a, b) => {
+      const dateA = this._firstDate(
+        a && a.startTimeUTC,
+        a && a.gameDate,
+        a && a.startTime,
+        a && a.gameDateTime,
+        a && a.startTimeLocal
+      );
+      const dateB = this._firstDate(
+        b && b.startTimeUTC,
+        b && b.gameDate,
+        b && b.startTime,
+        b && b.gameDateTime,
+        b && b.startTimeLocal
+      );
+
+      if (dateA && dateB) return dateA - dateB;
+      if (dateA) return -1;
+      if (dateB) return 1;
+      return 0;
+    });
+
+    return hydrated;
+  },
+
+  _hydrateNhlGame(game) {
+    if (!game || typeof game !== "object") return null;
+
+    const normalized = Object.assign({}, game);
+
+    const startDate = this._firstDate(
+      normalized && normalized.startTimeUTC,
+      normalized && normalized.gameDate,
+      normalized && normalized.startTime,
+      normalized && normalized.gameDateTime,
+      normalized && normalized.startTimeLocal
+    );
+
+    if (startDate) {
+      const iso = startDate.toISOString();
+      if (!normalized.gameDate) normalized.gameDate = iso;
+      if (!normalized.startTimeUTC) normalized.startTimeUTC = iso;
+    }
+
+    const status = (normalized && typeof normalized.status === "object") ? normalized.status : {};
+    normalized.status = Object.assign({
+      abstractGameState: "Preview",
+      detailedState: (status && status.detailedState) || ""
+    }, status);
+
+    const linescore = (normalized && typeof normalized.linescore === "object") ? normalized.linescore : {};
+    const lsTeams = (linescore && typeof linescore.teams === "object") ? linescore.teams : {};
+    linescore.teams = {
+      away: this._hydrateNhlLinescoreTeam(lsTeams.away),
+      home: this._hydrateNhlLinescoreTeam(lsTeams.home)
+    };
+
+    if (Object.prototype.hasOwnProperty.call(linescore, "currentPeriod")) {
+      const cp = this._asNumberOrNull(linescore.currentPeriod);
+      if (cp != null) linescore.currentPeriod = cp;
+    } else {
+      linescore.currentPeriod = null;
+    }
+
+    if (typeof linescore.currentPeriodTimeRemaining === "string") {
+      linescore.currentPeriodTimeRemaining = linescore.currentPeriodTimeRemaining.trim();
+    }
+
+    normalized.linescore = Object.assign({
+      currentPeriod: linescore.currentPeriod,
+      currentPeriodOrdinal: linescore.currentPeriodOrdinal || "",
+      currentPeriodTimeRemaining: linescore.currentPeriodTimeRemaining || "",
+      teams: linescore.teams
+    }, linescore);
+
+    const teams = (normalized && typeof normalized.teams === "object") ? normalized.teams : {};
+    normalized.teams = {
+      away: this._hydrateNhlGameTeam(teams.away),
+      home: this._hydrateNhlGameTeam(teams.home)
+    };
+
     return normalized;
+  },
+
+  _hydrateNhlGameTeam(entry) {
+    const teamEntry = Object.assign({}, entry || {});
+    const team = Object.assign({}, teamEntry.team || {});
+
+    if (team.abbreviation && typeof team.abbreviation === "string") {
+      team.abbreviation = team.abbreviation.toUpperCase();
+    }
+    if (team.teamAbbreviation && typeof team.teamAbbreviation === "string") {
+      team.teamAbbreviation = team.teamAbbreviation.toUpperCase();
+    }
+    if (!team.teamAbbreviation && team.abbreviation) {
+      team.teamAbbreviation = team.abbreviation;
+    }
+
+    teamEntry.team = team;
+
+    if (Object.prototype.hasOwnProperty.call(teamEntry, "score")) {
+      const score = this._asNumberOrNull(teamEntry.score);
+      teamEntry.score = (score != null) ? score : teamEntry.score;
+    }
+
+    const shotCandidates = [teamEntry.shotsOnGoal, teamEntry.sog];
+    let shots = null;
+    for (let i = 0; i < shotCandidates.length; i += 1) {
+      const val = this._asNumberOrNull(shotCandidates[i]);
+      if (val != null) {
+        shots = val;
+        break;
+      }
+    }
+    if (shots != null) teamEntry.shotsOnGoal = shots;
+    else if (!Object.prototype.hasOwnProperty.call(teamEntry, "shotsOnGoal")) teamEntry.shotsOnGoal = null;
+
+    return teamEntry;
+  },
+
+  _hydrateNhlLinescoreTeam(entry) {
+    const team = Object.assign({}, entry || {});
+    if (Object.prototype.hasOwnProperty.call(team, "shotsOnGoal")) {
+      const sog = this._asNumberOrNull(team.shotsOnGoal);
+      team.shotsOnGoal = (sog != null) ? sog : team.shotsOnGoal;
+    } else {
+      team.shotsOnGoal = null;
+    }
+    return team;
   },
 
   _normalizeNhlScoreboardGame(game) {
@@ -707,8 +949,8 @@ module.exports = NodeHelper.create({
     const h = parseInt(hStr, 10);
     const m = parseInt(mStr, 10);
 
-    // Before 8:45 AM local time, show yesterday's schedule (catch late finishes)
-    if (h < 8 || (h === 8 && m < 45)) {
+    // Before 9:30 AM local time, show yesterday's schedule (catch late finishes)
+    if (h < 9 || (h === 9 && m < 30)) {
       const dt = new Date(dateIso);
       dt.setDate(dt.getDate() - 1);
       dateIso = dt.toISOString().slice(0, 10);
@@ -718,6 +960,29 @@ module.exports = NodeHelper.create({
       dateIso,
       dateCompact: dateIso.replace(/-/g, "")
     };
+  },
+
+  _getNhlScoreboardDate() {
+    const tz = this.config && this.config.timeZone ? this.config.timeZone : "America/Chicago";
+    const now = new Date();
+    let dateIso = now.toLocaleDateString("en-CA", { timeZone: tz });
+    const timeStr = now.toLocaleTimeString("en-GB", {
+      timeZone: tz,
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+    const [hStr, mStr] = timeStr.split(":");
+    const hour = parseInt(hStr, 10);
+    const minute = parseInt(mStr, 10);
+
+    if (hour < 9 || (hour === 9 && minute < 30)) {
+      const dt = new Date(dateIso);
+      dt.setDate(dt.getDate() - 1);
+      dateIso = dt.toISOString().slice(0, 10);
+    }
+
+    return dateIso;
   },
 
   _getNflWeekDateRange() {
