@@ -29,7 +29,7 @@
     defaults: {
       updateIntervalScores:            60 * 1000,
       scoreboardColumns:               null,
-      gamesPerColumn:                  DEFAULT_GAMES_PER_COLUMN,
+      gamesPerColumn:                  null,
       gamesPerPage:                      null,
       league:                        "mlb",
       layoutScale:                     1.0,
