@@ -20,10 +20,12 @@
   // Scoreboard layout defaults (can be overridden via config)
   var DEFAULT_SCOREBOARD_COLUMNS        = 2;
   var DEFAULT_SCOREBOARD_COLUMNS_NFL    = 4;
+  var DEFAULT_SCOREBOARD_COLUMNS_NBA    = 4;
   var DEFAULT_GAMES_PER_COLUMN          = 2;
   var DEFAULT_GAMES_PER_COLUMN_NFL      = 4;
+  var DEFAULT_GAMES_PER_COLUMN_NBA      = 4;
 
-  var SUPPORTED_LEAGUES = ["mlb", "nhl", "nfl"];
+  var SUPPORTED_LEAGUES = ["mlb", "nhl", "nfl", "nba"];
 
   Module.register("MMM-ScoresAndStandings", {
     defaults: {
@@ -38,6 +40,7 @@
       highlightedTeams_mlb:             [],
       highlightedTeams_nhl:             [],
       highlightedTeams_nfl:             [],
+      highlightedTeams_nba:             [],
       showTitle:                        true,
       useTimesSquareFont:               true,
 
@@ -51,6 +54,7 @@
       if (league === "mlb") return "MLB Scoreboard";
       if (league === "nhl") return "NHL Scoreboard";
       if (league === "nfl") return "NFL Scoreboard";
+      if (league === "nba") return "NBA Scoreboard";
       return "Scoreboard";
     },
 
@@ -189,6 +193,7 @@
       var league = this._getLeague();
       if (league === "nhl") return this.config.highlightedTeams_nhl;
       if (league === "nfl") return this.config.highlightedTeams_nfl;
+      if (league === "nba") return this.config.highlightedTeams_nba;
       return this.config.highlightedTeams_mlb;
     },
 
@@ -222,12 +227,14 @@
     _defaultColumnsForLeague: function () {
       var league = this._getLeague();
       if (league === "nfl") return DEFAULT_SCOREBOARD_COLUMNS_NFL;
+      if (league === "nba") return DEFAULT_SCOREBOARD_COLUMNS_NBA;
       return DEFAULT_SCOREBOARD_COLUMNS;
     },
 
     _defaultRowsForLeague: function () {
       var league = this._getLeague();
       if (league === "nfl") return DEFAULT_GAMES_PER_COLUMN_NFL;
+      if (league === "nba") return DEFAULT_GAMES_PER_COLUMN_NBA;
       return DEFAULT_GAMES_PER_COLUMN;
     },
 
@@ -245,7 +252,7 @@
         defaultRows
       );
 
-      if (league === "nfl") {
+      if (league === "nfl" || league === "nba") {
         if (columns < defaultCols) columns = defaultCols;
         if (perColumn < defaultRows) perColumn = defaultRows;
       }
@@ -257,7 +264,7 @@
         var override = this._asPositiveInt(gamesPerPageConfig, gamesPerPage);
         var computedRows = Math.max(1, Math.ceil(override / columns));
 
-        if (league === "nfl") {
+        if (league === "nfl" || league === "nba") {
           if (computedRows < defaultRows) computedRows = defaultRows;
           perColumn = computedRows;
           gamesPerPage = columns * perColumn;
@@ -530,6 +537,7 @@
       var league = this._getLeague();
       if (league === "nhl") return this._createNhlGameCard(game);
       if (league === "nfl") return this._createNflGameCard(game);
+      if (league === "nba") return this._createNbaGameCard(game);
       return this._createMlbGameCard(game);
     },
 
@@ -1001,6 +1009,139 @@
       });
     },
 
+    _createNbaGameCard: function (game) {
+      var league = "nba";
+      var competition = game && game.competitions && game.competitions[0];
+      if (!competition) competition = {};
+
+      var status = (competition.status && competition.status.type) || game.status && game.status.type || {};
+      var state = (status.state || "").toLowerCase();
+      var detailed = status.shortDetail || status.detail || status.description || "";
+
+      var isPreview = state === "pre" || state === "preview" || state === "scheduled";
+      var isFinal = state === "post" || state === "final" || !!status.completed;
+      var isLive = state === "in" || state === "live";
+
+      var showVals = !isPreview;
+
+      var statusText = "";
+      if (isPreview) {
+        statusText = this._formatStartTime(competition.date || game.date);
+      } else if (isFinal) {
+        statusText = detailed || "Final";
+      } else if (isLive) {
+        var period = this._firstNumber(
+          competition.status && competition.status.period,
+          status.period,
+          game.status && game.status.period
+        );
+        var ord = this._ordinal(period);
+        var clock = competition.status && (competition.status.displayClock || competition.status.clock);
+        if (!clock && status) clock = status.displayClock || status.clock;
+        var parts = [];
+        if (ord) parts.push(ord);
+        if (clock) parts.push(clock);
+        statusText = parts.join(" ") || detailed || "Live";
+      } else {
+        statusText = detailed || "";
+      }
+
+      var cardClasses = [];
+      if (isFinal) cardClasses.push("is-final");
+      else if (isLive) cardClasses.push("is-live");
+      else if (isPreview) cardClasses.push("is-preview");
+
+      var competitors = competition.competitors || [];
+      var away = null, home = null;
+      for (var i = 0; i < competitors.length; i++) {
+        var comp = competitors[i];
+        if (!comp) continue;
+        var side = (comp.homeAway || comp.homeAway === 0) ? String(comp.homeAway).toLowerCase() : "";
+        if (side === "home") home = comp;
+        else if (side === "away") away = comp;
+      }
+
+      if (!away && competitors.length > 0) away = competitors[0];
+      if (!home && competitors.length > 1) home = competitors[1];
+
+      var rows = [];
+      var pair = [away, home];
+      for (var idx = 0; idx < pair.length; idx++) {
+        var entry = pair[idx] || {};
+        var team = entry.team || {};
+        var abbr = this._abbrForTeam(team, league);
+        var highlight = this._isHighlighted(abbr);
+
+        var scoreNum = this._firstNumber(entry.score, entry.points, team && team.score);
+
+        var lineScores = Array.isArray(entry.linescores) ? entry.linescores : [];
+        var quarters = [];
+        for (var lsIdx = 0; lsIdx < lineScores.length; lsIdx++) {
+          var ls = lineScores[lsIdx];
+          var period = this._firstNumber(ls && ls.period, ls && ls.sequenceNumber);
+          if (!Number.isFinite(period)) continue;
+          var periodIndex = Math.max(0, parseInt(period, 10) - 1);
+          quarters[periodIndex] = this._firstNumber(
+            ls.value,
+            ls.displayValue,
+            ls.score,
+            ls.points
+          );
+        }
+
+        var totalScore = scoreNum;
+        if (totalScore == null) {
+          var running = 0;
+          var haveQuarter = false;
+          for (var qIdx = 0; qIdx < quarters.length; qIdx++) {
+            var qVal = quarters[qIdx];
+            if (qVal == null || qVal === "") continue;
+            var numeric = Number(qVal);
+            if (!isNaN(numeric)) {
+              running += numeric;
+              haveQuarter = true;
+            }
+          }
+          if (haveQuarter) totalScore = running;
+        }
+
+        var otherScore = null;
+        if (idx === 0 && home) {
+          otherScore = this._firstNumber(home.score, home.points, home.team && home.team.score);
+        } else if (idx === 1 && away) {
+          otherScore = this._firstNumber(away.score, away.points, away.team && away.team.score);
+        }
+
+        var isLoser = false;
+        if (isFinal && totalScore != null && otherScore != null && totalScore !== otherScore) {
+          isLoser = totalScore < otherScore;
+        }
+
+        rows.push({
+          type: (idx === 0) ? "away" : "home",
+          abbr: abbr,
+          logoAbbr: abbr,
+          highlight: highlight,
+          isLoser: isLoser,
+          metrics: [],
+          total: totalScore,
+          totalPlaceholder: isPreview ? "" : "—"
+        });
+      }
+
+      if (!showVals && this._rowsContainValues(rows)) showVals = true;
+
+      return this._createScoreboardCard({
+        league: league,
+        live: isLive,
+        showValues: showVals,
+        statusText: statusText,
+        metricLabels: [],
+        rows: rows,
+        cardClasses: cardClasses
+      });
+    },
+
     _formatStartTime: function (isoDate) {
       if (!isoDate) return "";
       try {
@@ -1044,7 +1185,8 @@
       if (n === 2) return "Q2";
       if (n === 3) return "Q3";
       if (n === 4) return "Q4";
-      return "OT";
+      if (n === 5) return "OT";
+      return (n - 4) + "OT";
     },
 
     _abbrForTeam: function (team, league) {
@@ -1058,6 +1200,8 @@
       } else if (league === "nhl") {
         abbr = team.teamAbbreviation || team.abbreviation || team.triCode || team.shortName || name;
       } else if (league === "nfl") {
+        abbr = team.abbreviation || team.teamAbbreviation || team.shortDisplayName || team.nickname || name;
+      } else if (league === "nba") {
         abbr = team.abbreviation || team.teamAbbreviation || team.shortDisplayName || team.nickname || name;
       }
 
@@ -1095,6 +1239,8 @@
         path = "images/nhl/" + String(abbr || "").toUpperCase() + ".png";
       } else if (league === "nfl") {
         path = "images/nfl/" + String(abbr || "").toLowerCase() + ".png";
+      } else if (league === "nba") {
+        path = "images/nba/" + String(abbr || "").toUpperCase() + ".png";
       } else {
         path = "images/mlb/" + String(abbr || "").toUpperCase() + ".png";
       }

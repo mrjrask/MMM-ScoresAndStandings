@@ -88,7 +88,8 @@
   width: var(--scoreboard-card-width);
 }
 
-.games-matrix-cell.league-nfl {
+.games-matrix-cell.league-nfl,
+.games-matrix-cell.league-nba {
   --scoreboard-card-width-base: var(--scoreboard-card-width-base-nfl);
   --scoreboard-card-width: calc(var(--scoreboard-card-width-base-nfl) * var(--box-scale));
 }
@@ -133,7 +134,8 @@
   --metric-count: 3;
 }
 
-.scoreboard-card.league-nfl {
+.scoreboard-card.league-nfl,
+.scoreboard-card.league-nba {
   --scoreboard-card-width-base: var(--scoreboard-card-width-base-nfl);
   --scoreboard-card-width: calc(var(--scoreboard-card-width-base-nfl) * var(--box-scale));
 }

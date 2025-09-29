@@ -3,7 +3,7 @@ const NodeHelper = require("node_helper");
 const fetch      = global.fetch;
 const dns        = require("dns");
 
-const SUPPORTED_LEAGUES = ["mlb", "nhl", "nfl"];
+const SUPPORTED_LEAGUES = ["mlb", "nhl", "nfl", "nba"];
 
 const DNS_LOOKUP = (dns && dns.promises && typeof dns.promises.lookup === "function")
   ? (host) => dns.promises.lookup(host)
@@ -52,6 +52,8 @@ module.exports = NodeHelper.create({
         await this._fetchNhlGames();
       } else if (league === "nfl") {
         await this._fetchNflGames();
+      } else if (league === "nba") {
+        await this._fetchNbaGames();
       } else {
         await this._fetchMlbGames();
       }
@@ -858,6 +860,41 @@ module.exports = NodeHelper.create({
 
     const intVal = parseInt(value, 10);
     return Number.isFinite(intVal) ? intVal : null;
+  },
+
+  async _fetchNbaGames() {
+    try {
+      const { dateIso, dateCompact } = this._getTargetDate();
+      const url = `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${dateCompact}`;
+      const res = await fetch(url);
+      const json = await res.json();
+      const events = Array.isArray(json.events) ? json.events : [];
+
+      events.sort((a, b) => {
+        const dateA = this._firstDate(
+          a && a.date,
+          a && a.startDate,
+          a && a.startTimeUTC,
+          a && a.competitions && a.competitions[0] && (a.competitions[0].date || a.competitions[0].startDate || a.competitions[0].startTimeUTC)
+        );
+        const dateB = this._firstDate(
+          b && b.date,
+          b && b.startDate,
+          b && b.startTimeUTC,
+          b && b.competitions && b.competitions[0] && (b.competitions[0].date || b.competitions[0].startDate || b.competitions[0].startTimeUTC)
+        );
+
+        if (dateA && dateB) return dateA - dateB;
+        if (dateA) return -1;
+        if (dateB) return 1;
+        return 0;
+      });
+
+      console.log(`🏀 Sending ${events.length} NBA games for ${dateIso} to front-end.`);
+      this._notifyGames("nba", events);
+    } catch (e) {
+      console.error("🚨 NBA fetchGames failed:", e);
+    }
   },
 
   async _fetchNflGames() {
