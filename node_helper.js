@@ -253,23 +253,101 @@ module.exports = NodeHelper.create({
     const games = [];
     const seen = new Set();
 
+    const normalizeDate = (value) => {
+      if (!value) return null;
+      if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return value.toISOString().slice(0, 10);
+      }
+      const str = String(value).trim();
+      if (!str) return null;
+      if (str.includes("T")) {
+        return str.split("T", 1)[0];
+      }
+      if (str.length >= 10) {
+        return str.slice(0, 10);
+      }
+      return str;
+    };
+
+    const pushGame = (game) => {
+      if (!game) return;
+
+      if (targetDate) {
+        const gameDate = normalizeDate(
+          game.gameDate || game.startTimeUTC || game.startTime || game.gameDateTime || game.startTimeLocal
+        );
+        if (gameDate && gameDate !== targetDate) return;
+      }
+
+      const key = game.id || game.gamePk || game.gameId;
+      const keyStr = (key != null) ? String(key) : null;
+      if (keyStr && seen.has(keyStr)) return;
+      if (keyStr) seen.add(keyStr);
+
+      games.push(game);
+    };
+
     const pushGames = (entries) => {
       if (!Array.isArray(entries)) return;
       for (let i = 0; i < entries.length; i += 1) {
-        const game = entries[i];
-        if (!game) continue;
+        pushGame(entries[i]);
+      }
+    };
 
-        if (targetDate) {
-          const gameDate = (game.gameDate || game.startTimeUTC || "").slice(0, 10);
-          if (gameDate && gameDate !== targetDate) continue;
+    const processBucket = (bucket, fallbackDate) => {
+      if (!bucket) return;
+
+      if (Array.isArray(bucket)) {
+        pushGames(bucket);
+        return;
+      }
+
+      const bucketObj = (typeof bucket === "object") ? bucket : {};
+      const bucketDate = normalizeDate(
+        fallbackDate
+        || bucketObj.date
+        || bucketObj.gameDate
+        || bucketObj.day
+      );
+      if (targetDate && bucketDate && bucketDate !== targetDate) return;
+
+      if (Array.isArray(bucketObj.games)) {
+        pushGames(bucketObj.games);
+        return;
+      }
+
+      const possibleLists = ["items", "events", "matchups"];
+      for (let i = 0; i < possibleLists.length; i += 1) {
+        const list = bucketObj[possibleLists[i]];
+        if (Array.isArray(list)) {
+          pushGames(list);
         }
+      }
 
-        const key = game.id || game.gamePk || game.gameId;
-        const keyStr = (key != null) ? String(key) : null;
-        if (keyStr && seen.has(keyStr)) continue;
-        if (keyStr) seen.add(keyStr);
+      const values = Object.values(bucketObj);
+      for (let j = 0; j < values.length; j += 1) {
+        if (Array.isArray(values[j])) {
+          pushGames(values[j]);
+        }
+      }
+    };
 
-        games.push(game);
+    const processBuckets = (buckets) => {
+      if (!buckets) return;
+
+      if (Array.isArray(buckets)) {
+        for (let i = 0; i < buckets.length; i += 1) {
+          processBucket(buckets[i]);
+        }
+        return;
+      }
+
+      if (typeof buckets === "object") {
+        const keys = Object.keys(buckets);
+        for (let i = 0; i < keys.length; i += 1) {
+          const key = keys[i];
+          processBucket(buckets[key], normalizeDate(key));
+        }
       }
     };
 
@@ -277,27 +355,11 @@ module.exports = NodeHelper.create({
       pushGames(json.games);
     }
 
-    if (Array.isArray(json.gameWeek)) {
-      for (let i = 0; i < json.gameWeek.length; i += 1) {
-        const day = json.gameWeek[i] || {};
-        if (targetDate) {
-          const dayDate = (day.date || day.gameDate || "").slice(0, 10);
-          if (dayDate && dayDate !== targetDate) continue;
-        }
-        pushGames(day.games);
-      }
-    }
-
-    if (Array.isArray(json.dates)) {
-      for (let j = 0; j < json.dates.length; j += 1) {
-        const bucket = json.dates[j] || {};
-        if (targetDate) {
-          const bucketDate = (bucket.date || bucket.gameDate || "").slice(0, 10);
-          if (bucketDate && bucketDate !== targetDate) continue;
-        }
-        pushGames(bucket.games);
-      }
-    }
+    processBuckets(json.gameWeek);
+    processBuckets(json.dates);
+    processBuckets(json.gamesByDate);
+    processBuckets(json.gamesByDay);
+    processBuckets(json.gamesByDateV2);
 
     if (json.scoreboard && typeof json.scoreboard === "object" && json.scoreboard !== json) {
       const nested = this._collectNhlScoreboardGames(json.scoreboard, dateIso);
