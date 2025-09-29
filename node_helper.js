@@ -66,6 +66,8 @@ module.exports = NodeHelper.create({
     const { dateIso } = this._getTargetDate();
     const primaryUrl = `https://statsapi.web.nhl.com/api/v1/schedule?date=${dateIso}&expand=schedule.linescore`;
 
+    let delivered = false;
+
     try {
       const res  = await fetch(primaryUrl);
       if (!res.ok) {
@@ -78,21 +80,44 @@ module.exports = NodeHelper.create({
       if (Array.isArray(games) && games.length > 0) {
         console.log(`🏒 Sending ${games.length} NHL games to front-end.`);
         this._notifyGames("nhl", games);
-        return;
+        delivered = true;
+      } else {
+        console.info(`ℹ️ Primary NHL stats API returned no games for ${dateIso}; attempting scoreboard fallback.`);
       }
-
-      console.info(`ℹ️ Primary NHL stats API returned no games for ${dateIso}; attempting scoreboard fallback.`);
     } catch (e) {
       console.error("🚨 NHL fetchGames failed:", e);
       console.info(`ℹ️ Falling back to api-web NHL scoreboard endpoint for ${dateIso}`);
     }
 
-    try {
-      const fallbackGames = await this._fetchNhlScoreboardFallback(dateIso);
-      console.log(`🏒 Sending ${fallbackGames.length} NHL games to front-end (fallback).`);
-      this._notifyGames("nhl", fallbackGames);
-    } catch (fallbackError) {
-      console.error("🚨 NHL fallback fetchGames failed:", fallbackError);
+    if (!delivered) {
+      try {
+        const fallbackGames = await this._fetchNhlScoreboardFallback(dateIso);
+        if (fallbackGames.length > 0) {
+          console.log(`🏒 Sending ${fallbackGames.length} NHL games to front-end (scoreboard fallback).`);
+          this._notifyGames("nhl", fallbackGames);
+          delivered = true;
+        } else {
+          console.info(`ℹ️ NHL scoreboard fallback returned no games for ${dateIso}; trying stats REST fallback.`);
+        }
+      } catch (fallbackError) {
+        console.error("🚨 NHL scoreboard fallback fetchGames failed:", fallbackError);
+        console.info(`ℹ️ Attempting NHL stats REST fallback for ${dateIso}`);
+      }
+    }
+
+    if (!delivered) {
+      try {
+        const restGames = await this._fetchNhlStatsRestGames(dateIso);
+        if (restGames.length > 0) {
+          console.log(`🏒 Sending ${restGames.length} NHL games to front-end (stats REST fallback).`);
+          this._notifyGames("nhl", restGames);
+          delivered = true;
+        } else {
+          console.warn(`⚠️ NHL stats REST fallback returned no games for ${dateIso}.`);
+        }
+      } catch (restError) {
+        console.error("🚨 NHL stats REST fallback failed:", restError);
+      }
     }
   },
 
@@ -109,6 +134,25 @@ module.exports = NodeHelper.create({
 
     for (let i = 0; i < rawGames.length; i++) {
       const mapped = this._normalizeNhlScoreboardGame(rawGames[i]);
+      if (mapped) normalized.push(mapped);
+    }
+
+    return normalized;
+  },
+
+  async _fetchNhlStatsRestGames(dateIso) {
+    const restUrl = `https://api.nhle.com/stats/rest/en/schedule?cayenneExp=gameDate=%22${dateIso}%22`;
+    const res = await fetch(restUrl);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    }
+
+    const json = await res.json();
+    const rawGames = Array.isArray(json.data) ? json.data : [];
+    const normalized = [];
+
+    for (let i = 0; i < rawGames.length; i += 1) {
+      const mapped = this._normalizeNhlStatsRestGame(rawGames[i]);
       if (mapped) normalized.push(mapped);
     }
 
@@ -145,6 +189,123 @@ module.exports = NodeHelper.create({
         away: { team: awayTeam.team, score: awayTeam.score },
         home: { team: homeTeam.team, score: homeTeam.score }
       }
+    };
+  },
+
+  _normalizeNhlStatsRestGame(game) {
+    if (!game) return null;
+
+    const periodDescriptor = {
+      number: this._asNumberOrNull(game.period),
+      periodType: game.periodType,
+      periodTimeRemaining: game.gameClock
+    };
+
+    const status = this._nhlScoreboardStatus({
+      gameState: game.gameState,
+      gameScheduleState: game.gameScheduleState,
+      clock: game.gameClock
+    }, periodDescriptor);
+
+    const away = this._normalizeNhlStatsRestTeam(game, "away");
+    const home = this._normalizeNhlStatsRestTeam(game, "home");
+
+    const linescore = {
+      currentPeriod: this._asNumberOrNull(game.period),
+      currentPeriodOrdinal: this._nhlScoreboardPeriodOrdinal(periodDescriptor),
+      currentPeriodTimeRemaining: this._nhlScoreboardText(game.gameClock || ""),
+      teams: {
+        away: { shotsOnGoal: away.shotsOnGoal },
+        home: { shotsOnGoal: home.shotsOnGoal }
+      }
+    };
+
+    const gamePk = this._asNumberOrNull(game.gamePk || game.gameId || game.id);
+    const gameDate = game.gameDate || game.startTimeUTC || null;
+
+    return {
+      gamePk: gamePk != null ? gamePk : (game.gamePk || game.gameId || game.id),
+      gameDate,
+      startTimeUTC: game.startTimeUTC || gameDate || null,
+      season: game.seasonId || game.season || null,
+      status,
+      linescore,
+      teams: {
+        away: { team: away.team, score: away.score },
+        home: { team: home.team, score: home.score }
+      }
+    };
+  },
+
+  _normalizeNhlStatsRestTeam(game, side) {
+    const prefix = side === "home" ? "home" : "away";
+
+    const abbr = this._nhlScoreboardText(
+      game[`${prefix}TeamAbbrev`]
+        || game[`${prefix}TeamAbbreviation`]
+        || game[`${prefix}TeamTriCode`]
+        || game[`${prefix}TeamShortName`]
+        || ""
+    ).toUpperCase();
+
+    const location = this._nhlScoreboardText(
+      game[`${prefix}TeamPlaceName`]
+        || game[`${prefix}TeamLocation`]
+        || game[`${prefix}TeamCity`]
+        || game[`${prefix}TeamMarket`]
+        || ""
+    );
+
+    const name = this._nhlScoreboardText(
+      game[`${prefix}TeamCommonName`]
+        || game[`${prefix}TeamName`]
+        || game[`${prefix}TeamNickName`]
+        || game[`${prefix}TeamFullName`]
+        || ""
+    );
+
+    const shortName = this._nhlScoreboardText(game[`${prefix}TeamShortName`] || name || abbr || "");
+
+    const display = (location && name) ? `${location} ${name}`.trim() : (name || location || abbr || "");
+
+    const shotKeys = [
+      `${prefix}TeamShotsOnGoal`,
+      `${prefix}TeamSOG`,
+      `${prefix}TeamSoG`,
+      `${prefix}TeamShots`,
+      `${prefix}ShotsOnGoal`,
+      `${prefix}Shots`
+    ];
+    let shots = null;
+    for (let i = 0; i < shotKeys.length; i += 1) {
+      shots = this._asNumberOrNull(game[shotKeys[i]]);
+      if (shots != null) break;
+    }
+
+    const id = this._asNumberOrNull(game[`${prefix}TeamId`] || game[`${prefix}TeamID`] || game[`${prefix}Team`]);
+
+    const scoreKeys = [
+      `${prefix}TeamScore`,
+      `${prefix}Score`
+    ];
+    let score = null;
+    for (let j = 0; j < scoreKeys.length; j += 1) {
+      score = this._asNumberOrNull(game[scoreKeys[j]]);
+      if (score != null) break;
+    }
+
+    return {
+      team: {
+        id: id != null ? id : undefined,
+        name: display,
+        teamName: name || display,
+        locationName: location,
+        abbreviation: abbr,
+        teamAbbreviation: abbr,
+        shortName
+      },
+      score,
+      shotsOnGoal: shots
     };
   },
 

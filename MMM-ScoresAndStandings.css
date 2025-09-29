@@ -24,10 +24,10 @@
   --scoreboard-pad-block:     calc(var(--scoreboard-pad-block-base) * var(--box-scale));
   --scoreboard-pad-inline:    calc(var(--scoreboard-pad-inline-base) * var(--box-scale));
   --scoreboard-gap:           calc(var(--scoreboard-gap-base) * var(--box-scale));
-  --scoreboard-status-font:   calc(var(--scoreboard-status-font-base) * var(--box-scale));
-  --scoreboard-label-font:    calc(var(--scoreboard-label-font-base) * var(--box-scale));
-  --scoreboard-team-font:     calc(var(--scoreboard-team-font-base) * var(--box-scale));
-  --scoreboard-value-font:    calc(var(--scoreboard-value-font-base) * var(--box-scale));
+  --scoreboard-status-font:   calc((var(--scoreboard-status-font-base) + 2pt) * var(--box-scale));
+  --scoreboard-label-font:    calc((var(--scoreboard-label-font-base) + 2pt) * var(--box-scale));
+  --scoreboard-team-font:     calc((var(--scoreboard-team-font-base) + 2pt) * var(--box-scale));
+  --scoreboard-value-font:    calc((var(--scoreboard-value-font-base) + 2pt) * var(--box-scale));
   --scoreboard-metric-width:  calc(var(--scoreboard-metric-width-base) * var(--box-scale));
   --scoreboard-placeholder-height: calc(var(--scoreboard-placeholder-height-base) * var(--box-scale));
   --scoreboard-font-family: 'Times Square', Arial, sans-serif;
@@ -203,10 +203,19 @@
 }
 
 .scoreboard-card .scoreboard-team-logo {
-  height: calc(var(--scoreboard-team-font) * 0.8);
-  max-height: calc(var(--scoreboard-team-font) * 0.9);
+  height: calc(var(--scoreboard-team-font) * 0.88);
+  max-height: calc(var(--scoreboard-team-font) * 0.99);
   width: auto;
   display: block;
+}
+
+.scoreboard-card .scoreboard-team-logo[src*="/SD.png"],
+.scoreboard-card .scoreboard-team-logo[src*="/MIN.png"],
+.scoreboard-card .scoreboard-team-logo[src*="/NYY.png"],
+.scoreboard-card .scoreboard-team-logo[src*="/DET.png"],
+.scoreboard-card .scoreboard-team-logo[src*="/KC.png"],
+.scoreboard-card .scoreboard-team-logo[src*="/ATH.png"] {
+  filter: brightness(1.2);
 }
 
 .scoreboard-card .scoreboard-team-abbr {
@@ -221,9 +230,13 @@
   font-size: var(--scoreboard-value-font);
   text-align: center;
   font-variant-numeric: tabular-nums;
-  color: var(--scoreboard-value-color);
+  color: var(--scoreboard-text);
   line-height: 1;
   font-weight: 700;
+}
+
+.scoreboard-card .scoreboard-value.live {
+  color: var(--scoreboard-value-color);
 }
 
 .scoreboard-card.league-nfl .scoreboard-header,
@@ -295,12 +308,16 @@
 }
 
 .scoreboard-card .scoreboard-row.loser .scoreboard-value {
-  color: rgba(255, 210, 66, 0.55);
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.scoreboard-card .scoreboard-row.loser .scoreboard-value.live {
+  color: var(--scoreboard-value-color);
 }
 
 /* Highlighted team */
 .scoreboard-card .team-highlight,
-.scoreboard-card .team-highlight ~ .scoreboard-value {
+.scoreboard-card .team-highlight ~ .scoreboard-value.live {
   color: var(--scoreboard-value-color) !important;
 }
 
