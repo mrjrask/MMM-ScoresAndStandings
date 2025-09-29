@@ -232,22 +232,84 @@
     },
 
     _syncScoreboardLayout: function () {
-      var columns       = this._asPositiveInt(this.config.scoreboardColumns, this._defaultColumnsForLeague());
+      var league        = this._getLeague();
+      var defaultCols   = this._defaultColumnsForLeague();
       var defaultRows   = this._defaultRowsForLeague();
-      var perColumn     = this._asPositiveInt(this.config.gamesPerColumn, defaultRows);
+
+      var columns = this._asPositiveInt(
+        this._getConfigValueForLeague("scoreboardColumns"),
+        defaultCols
+      );
+      var perColumn = this._asPositiveInt(
+        this._getConfigValueForLeague("gamesPerColumn"),
+        defaultRows
+      );
+
+      if (league === "nfl") {
+        if (columns < defaultCols) columns = defaultCols;
+        if (perColumn < defaultRows) perColumn = defaultRows;
+      }
 
       var gamesPerPage = columns * perColumn;
+      var gamesPerPageConfig = this._getConfigValueForLeague("gamesPerPage");
 
-      if (this.config.gamesPerPage != null) {
-        var override = this._asPositiveInt(this.config.gamesPerPage, gamesPerPage);
-        gamesPerPage = override;
-        perColumn = Math.max(1, Math.ceil(gamesPerPage / columns));
+      if (gamesPerPageConfig != null) {
+        var override = this._asPositiveInt(gamesPerPageConfig, gamesPerPage);
+        var computedRows = Math.max(1, Math.ceil(override / columns));
+
+        if (league === "nfl") {
+          if (computedRows < defaultRows) computedRows = defaultRows;
+          perColumn = computedRows;
+          gamesPerPage = columns * perColumn;
+          if (gamesPerPage < override) {
+            perColumn = Math.max(perColumn, Math.ceil(override / columns));
+            gamesPerPage = columns * perColumn;
+          }
+        } else {
+          perColumn = computedRows;
+          gamesPerPage = override;
+        }
+      } else {
+        gamesPerPage = columns * perColumn;
       }
 
       this._scoreboardColumns = columns;
       this._scoreboardRows    = perColumn;
       this._gamesPerPage      = Math.max(1, gamesPerPage);
       this._layoutScale       = this._resolveLayoutScale();
+    },
+
+    _getConfigValueForLeague: function (key) {
+      var cfg = this.config || {};
+      var league = this._getLeague();
+      if (!cfg) return null;
+
+      if (league) {
+        var leagueKey = key + "_" + league;
+        if (Object.prototype.hasOwnProperty.call(cfg, leagueKey)) {
+          return cfg[leagueKey];
+        }
+      }
+
+      var base = cfg[key];
+      if (base != null && typeof base === "object" && !Array.isArray(base)) {
+        if (league) {
+          var lower = base[league];
+          if (typeof lower !== "undefined") return lower;
+
+          var lcase = league.toLowerCase();
+          if (Object.prototype.hasOwnProperty.call(base, lcase)) return base[lcase];
+
+          var ucase = league.toUpperCase();
+          if (Object.prototype.hasOwnProperty.call(base, ucase)) return base[ucase];
+        }
+
+        if (Object.prototype.hasOwnProperty.call(base, "default")) {
+          return base.default;
+        }
+      }
+
+      return base;
     },
 
     _resolveLayoutScale: function () {

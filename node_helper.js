@@ -84,7 +84,7 @@ module.exports = NodeHelper.create({
     if (!delivered) {
       const legacyUrl = `https://statsapi.web.nhl.com/api/v1/schedule?date=${dateIso}&expand=schedule.linescore`;
       try {
-        const res  = await fetch(legacyUrl);
+        const res  = await fetch(legacyUrl, { headers: this._nhlRequestHeaders() });
         if (!res.ok) {
           throw new Error(`HTTP ${res.status} ${res.statusText}`);
         }
@@ -123,7 +123,7 @@ module.exports = NodeHelper.create({
 
   async _fetchNhlScoreboardGames(dateIso) {
     const fallbackUrl = `https://api-web.nhle.com/v1/scoreboard/${dateIso}`;
-    const res = await fetch(fallbackUrl);
+    const res = await fetch(fallbackUrl, { headers: this._nhlRequestHeaders() });
     if (!res.ok) {
       throw new Error(`HTTP ${res.status} ${res.statusText}`);
     }
@@ -201,9 +201,18 @@ module.exports = NodeHelper.create({
     return games;
   },
 
+  _nhlRequestHeaders() {
+    return {
+      "User-Agent": "Mozilla/5.0 (MMM-ScoresAndStandings)",
+      Accept: "application/json",
+      Referer: "https://www.nhl.com/",
+      Origin: "https://www.nhl.com"
+    };
+  },
+
   async _fetchNhlStatsRestGames(dateIso) {
     const restUrl = `https://api.nhle.com/stats/rest/en/schedule?cayenneExp=gameDate=%22${dateIso}%22`;
-    const res = await fetch(restUrl);
+    const res = await fetch(restUrl, { headers: this._nhlRequestHeaders() });
     if (!res.ok) {
       throw new Error(`HTTP ${res.status} ${res.statusText}`);
     }
