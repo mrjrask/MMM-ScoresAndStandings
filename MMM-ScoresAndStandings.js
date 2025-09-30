@@ -383,6 +383,80 @@
       return null;
     },
 
+    _resolveNhlShotsOnGoal: function () {
+      var keys = [
+        "shotsOnGoal",
+        "shots",
+        "shotsTotal",
+        "totalShots",
+        "shotsOnGoalTotal",
+        "sog"
+      ];
+
+      var queue = Array.prototype.slice.call(arguments || []);
+      var seen = (typeof Set !== "undefined") ? new Set() : [];
+
+      var markSeen = function (entry) {
+        if (!entry || typeof entry !== "object") return false;
+        if (seen instanceof Set) {
+          if (seen.has(entry)) return false;
+          seen.add(entry);
+          return true;
+        }
+        for (var si = 0; si < seen.length; si++) {
+          if (seen[si] === entry) return false;
+        }
+        seen.push(entry);
+        return true;
+      };
+
+      while (queue.length > 0) {
+        var item = queue.shift();
+        var numeric = this._toNumberOrNull(item);
+        if (numeric != null) return numeric;
+
+        if (!item || typeof item !== "object") continue;
+        if (!markSeen(item)) continue;
+
+        if (Array.isArray(item)) {
+          for (var ai = 0; ai < item.length; ai++) {
+            queue.push(item[ai]);
+          }
+          continue;
+        }
+
+        for (var ki = 0; ki < keys.length; ki++) {
+          var key = keys[ki];
+          if (Object.prototype.hasOwnProperty.call(item, key)) {
+            var val = this._toNumberOrNull(item[key]);
+            if (val != null) return val;
+          }
+        }
+
+        var nestedKeys = [
+          "stats",
+          "teamStats",
+          "statistics",
+          "totals",
+          "summary",
+          "teamSkaterStats",
+          "skaterStats",
+          "linescore"
+        ];
+
+        for (var nk = 0; nk < nestedKeys.length; nk++) {
+          var nested = item[nestedKeys[nk]];
+          if (nested != null) queue.push(nested);
+        }
+
+        // Some APIs provide direct away/home objects with nested shots
+        if (Object.prototype.hasOwnProperty.call(item, "away")) queue.push(item.away);
+        if (Object.prototype.hasOwnProperty.call(item, "home")) queue.push(item.home);
+      }
+
+      return null;
+    },
+
     _formatNhlTimeRemaining: function (remaining) {
       if (remaining == null) return "";
 
@@ -625,6 +699,8 @@
       }
 
       var metricLabels = (config && Array.isArray(config.metricLabels)) ? config.metricLabels : [];
+      var metricLabelClasses = (config && Array.isArray(config.metricLabelClasses)) ? config.metricLabelClasses : [];
+      var metricValueClasses = (config && Array.isArray(config.metricValueClasses)) ? config.metricValueClasses : [];
       card.style.setProperty("--metric-count", metricLabels.length);
 
       var live = !!(config && config.live);
@@ -647,6 +723,16 @@
       for (var li = 0; li < metricLabels.length; li++) {
         var label = document.createElement("div");
         label.className = "scoreboard-label";
+        var labelClassEntry = metricLabelClasses[li];
+        if (labelClassEntry) {
+          if (Array.isArray(labelClassEntry)) {
+            for (var lci = 0; lci < labelClassEntry.length; lci++) {
+              if (labelClassEntry[lci]) label.classList.add(labelClassEntry[lci]);
+            }
+          } else if (typeof labelClassEntry === "string") {
+            label.classList.add(labelClassEntry);
+          }
+        }
         label.textContent = metricLabels[li];
         header.appendChild(label);
       }
@@ -694,7 +780,9 @@
 
         if (Object.prototype.hasOwnProperty.call(rowData, "total") || Object.prototype.hasOwnProperty.call(rowData, "totalPlaceholder")) {
           var totalEl = document.createElement("span");
-          totalEl.className = "scoreboard-team-total";
+          var totalClass = "scoreboard-team-total";
+          if (live) totalClass += " live";
+          totalEl.className = totalClass;
           var totalPlaceholder = (rowData.totalPlaceholder != null) ? rowData.totalPlaceholder : "—";
           if (showVals) {
             if (rowData.total == null || rowData.total === "") {
@@ -713,7 +801,18 @@
         for (var mi = 0; mi < metricLabels.length; mi++) {
           var metric = metrics[mi];
           var valueEl = document.createElement("div");
-          valueEl.className = "scoreboard-value" + (live ? " live" : "");
+          var valueClass = "scoreboard-value" + (live ? " live" : "");
+          var valueClassEntry = metricValueClasses[mi];
+          if (valueClassEntry) {
+            if (Array.isArray(valueClassEntry)) {
+              for (var vci = 0; vci < valueClassEntry.length; vci++) {
+                if (valueClassEntry[vci]) valueClass += " " + valueClassEntry[vci];
+              }
+            } else if (typeof valueClassEntry === "string") {
+              valueClass += " " + valueClassEntry;
+            }
+          }
+          valueEl.className = valueClass;
 
           var placeholder = "—";
           var val = null;
@@ -896,13 +995,22 @@
       var homeScore = (typeof home.score !== "undefined") ? home.score : null;
 
       var lsTeams = (ls && ls.teams) || {};
-      var awayShots = lsTeams.away && typeof lsTeams.away.shotsOnGoal !== "undefined"
-        ? lsTeams.away.shotsOnGoal : null;
-      var homeShots = lsTeams.home && typeof lsTeams.home.shotsOnGoal !== "undefined"
-        ? lsTeams.home.shotsOnGoal : null;
-
-      awayShots = this._firstNumber(awayShots, lsTeams.away && lsTeams.away.sog, away && away.shotsOnGoal);
-      homeShots = this._firstNumber(homeShots, lsTeams.home && lsTeams.home.sog, home && home.shotsOnGoal);
+      var awayShots = this._resolveNhlShotsOnGoal(
+        lsTeams.away,
+        away,
+        game && game.shotsOnGoal && game.shotsOnGoal.away,
+        game && game.awayShotsOnGoal,
+        game && game.linescore && game.linescore.away,
+        game && game.linescore && game.linescore.teams && game.linescore.teams.away
+      );
+      var homeShots = this._resolveNhlShotsOnGoal(
+        lsTeams.home,
+        home,
+        game && game.shotsOnGoal && game.shotsOnGoal.home,
+        game && game.homeShotsOnGoal,
+        game && game.linescore && game.linescore.home,
+        game && game.linescore && game.linescore.teams && game.linescore.teams.home
+      );
 
       var rows = [];
       var pair = [away, home];
@@ -944,6 +1052,8 @@
         showValues: showVals,
         statusText: statusText,
         metricLabels: ["G", "SOG"],
+        metricLabelClasses: [null, "shots-on-goal-label"],
+        metricValueClasses: [null, "shots-on-goal-value"],
         rows: rows,
         cardClasses: cardClasses
       });
