@@ -383,6 +383,75 @@
       return null;
     },
 
+    _formatNhlTimeRemaining: function (remaining) {
+      if (remaining == null) return "";
+
+      if (typeof remaining === "string") {
+        return remaining;
+      }
+
+      if (typeof remaining === "number") {
+        if (!Number.isFinite(remaining)) return "";
+        var totalSeconds = Math.max(0, Math.round(remaining));
+        var minutes = Math.floor(totalSeconds / 60);
+        var seconds = totalSeconds % 60;
+        return minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
+      }
+
+      if (Array.isArray(remaining)) {
+        for (var idx = 0; idx < remaining.length; idx++) {
+          var formatted = this._formatNhlTimeRemaining(remaining[idx]);
+          if (formatted) return formatted;
+        }
+        return "";
+      }
+
+      if (typeof remaining === "object") {
+        var keys = [
+          "pretty",
+          "displayValue",
+          "display",
+          "value",
+          "text",
+          "timeRemaining",
+          "clock",
+          "remaining",
+          "formatted"
+        ];
+
+        for (var k = 0; k < keys.length; k++) {
+          var key = keys[k];
+          if (Object.prototype.hasOwnProperty.call(remaining, key)) {
+            var candidate = this._formatNhlTimeRemaining(remaining[key]);
+            if (candidate) return candidate;
+          }
+        }
+
+        var minutesVal = this._toNumberOrNull(remaining.minutes);
+        var secondsVal = this._toNumberOrNull(remaining.seconds);
+        if (minutesVal != null || secondsVal != null) {
+          var secondsTotal = 0;
+          if (minutesVal != null) secondsTotal += Math.max(0, minutesVal) * 60;
+          if (secondsVal != null) secondsTotal += Math.max(0, secondsVal);
+          secondsTotal = Math.max(0, Math.round(secondsTotal));
+          var mins = Math.floor(secondsTotal / 60);
+          var secs = secondsTotal % 60;
+          return mins + ":" + (secs < 10 ? "0" : "") + secs;
+        }
+
+        for (var prop in remaining) {
+          if (!Object.prototype.hasOwnProperty.call(remaining, prop)) continue;
+          var val = remaining[prop];
+          if (typeof val === "string") {
+            var trimmed = val.trim();
+            if (trimmed) return trimmed;
+          }
+        }
+      }
+
+      return "";
+    },
+
     _metricsContainValues: function (metrics) {
       if (!Array.isArray(metrics)) return false;
       for (var i = 0; i < metrics.length; i++) {
@@ -799,11 +868,13 @@
         statusText = detailed || "Final";
       } else if (isLive) {
         var period = ls.currentPeriodOrdinal || (ls.currentPeriod ? (ls.currentPeriod + "") : "");
-        var remaining = ls.currentPeriodTimeRemaining || "";
-        if (remaining && remaining.toUpperCase() === "END") {
+        var remaining = this._formatNhlTimeRemaining(ls.currentPeriodTimeRemaining).trim();
+        if (remaining && remaining.toUpperCase && remaining.toUpperCase() === "END") {
           statusText = (period ? period + " " : "") + "End";
-        } else {
+        } else if (remaining) {
           statusText = ((period ? period + " " : "") + remaining).trim();
+        } else {
+          statusText = (period || "").trim();
         }
         if (!statusText) statusText = detailed || "Live";
       } else {
