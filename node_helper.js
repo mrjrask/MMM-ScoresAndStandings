@@ -557,10 +557,14 @@ module.exports = NodeHelper.create({
     const awayTeam = this._normalizeNhlScoreboardTeam(game.awayTeam);
     const homeTeam = this._normalizeNhlScoreboardTeam(game.homeTeam);
 
+    const periodRemainingText = this._nhlScoreboardText(periodDescriptor.periodTimeRemaining || "");
+    const clockText = this._nhlScoreboardText(game.clock || "");
+    const currentPeriodTimeRemaining = periodRemainingText || clockText;
+
     const linescore = {
       currentPeriod: this._asNumberOrNull(periodDescriptor.number),
       currentPeriodOrdinal: this._nhlScoreboardPeriodOrdinal(periodDescriptor),
-      currentPeriodTimeRemaining: ((periodDescriptor.periodTimeRemaining || game.clock || "") + "").trim(),
+      currentPeriodTimeRemaining,
       teams: {
         away: { shotsOnGoal: this._asNumberOrNull(awayTeam.shotsOnGoal) },
         home: { shotsOnGoal: this._asNumberOrNull(homeTeam.shotsOnGoal) }
@@ -766,14 +770,15 @@ module.exports = NodeHelper.create({
   },
 
   _nhlScoreboardStatus(game, periodDescriptor) {
-    const stateRaw = (game && game.gameState ? String(game.gameState) : "");
+    const stateRaw = (game && game.gameState) ? this._nhlScoreboardText(game.gameState) : "";
     const state = stateRaw.toUpperCase();
-    const scheduleRaw = (game && game.gameScheduleState ? String(game.gameScheduleState) : "");
+    const scheduleRaw = (game && game.gameScheduleState) ? this._nhlScoreboardText(game.gameScheduleState) : "";
     const schedule = scheduleRaw.toUpperCase();
-    const clockRaw = (game && game.clock ? String(game.clock) : "");
-    const timeRemainingRaw = periodDescriptor && periodDescriptor.periodTimeRemaining
-      ? String(periodDescriptor.periodTimeRemaining)
-      : clockRaw;
+    const clockRaw = (game && game.clock) ? this._nhlScoreboardText(game.clock) : "";
+    const periodRemainingRaw = (periodDescriptor && periodDescriptor.periodTimeRemaining)
+      ? this._nhlScoreboardText(periodDescriptor.periodTimeRemaining)
+      : "";
+    const timeRemainingRaw = periodRemainingRaw || clockRaw;
 
     let abstract = "Preview";
     let detailed = "";
