@@ -204,6 +204,14 @@
   line-height: 1;
 }
 
+.scoreboard-card.league-nfl .scoreboard-team-total {
+  color: var(--scoreboard-text);
+}
+
+.scoreboard-card.league-nfl .scoreboard-team-total.live {
+  color: var(--scoreboard-value-color);
+}
+
 .scoreboard-card .scoreboard-team-logo {
   height: calc(var(--scoreboard-team-font) * 0.88);
   max-height: calc(var(--scoreboard-team-font) * 0.99);
@@ -239,6 +247,14 @@
 
 .scoreboard-card .scoreboard-value.live {
   color: var(--scoreboard-value-color);
+}
+
+.scoreboard-card.league-nhl .scoreboard-label.shots-on-goal-label {
+  font-size: max(0px, calc(var(--scoreboard-label-font) - 5pt));
+}
+
+.scoreboard-card.league-nhl .scoreboard-value.shots-on-goal-value {
+  font-size: max(0px, calc(var(--scoreboard-value-font) - 5pt));
 }
 
 .scoreboard-card.league-nfl .scoreboard-header,

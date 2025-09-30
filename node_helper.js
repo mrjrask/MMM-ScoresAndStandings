@@ -522,7 +522,43 @@ module.exports = NodeHelper.create({
       teamEntry.score = (score != null) ? score : teamEntry.score;
     }
 
-    const shotCandidates = [teamEntry.shotsOnGoal, teamEntry.sog];
+    const shotCandidates = [
+      teamEntry.shotsOnGoal,
+      teamEntry.sog,
+      teamEntry.shots,
+      teamEntry.shotsTotal,
+      teamEntry.totalShots,
+      teamEntry.shotsOnGoalTotal
+    ];
+
+    const nestedShotSources = [
+      teamEntry.stats,
+      teamEntry.teamStats,
+      teamEntry.statistics,
+      teamEntry.teamSkaterStats,
+      teamEntry.skaterStats
+    ];
+
+    for (let ns = 0; ns < nestedShotSources.length; ns += 1) {
+      const source = nestedShotSources[ns];
+      if (source && typeof source === "object") {
+        shotCandidates.push(
+          source.shotsOnGoal,
+          source.sog,
+          source.shots,
+          source.shotsTotal,
+          source.totalShots
+        );
+
+        if (source.teamSkaterStats && typeof source.teamSkaterStats === "object") {
+          shotCandidates.push(
+            source.teamSkaterStats.shotsOnGoal,
+            source.teamSkaterStats.sog,
+            source.teamSkaterStats.shots
+          );
+        }
+      }
+    }
     let shots = null;
     for (let i = 0; i < shotCandidates.length; i += 1) {
       const val = this._asNumberOrNull(shotCandidates[i]);
@@ -539,12 +575,49 @@ module.exports = NodeHelper.create({
 
   _hydrateNhlLinescoreTeam(entry) {
     const team = Object.assign({}, entry || {});
-    if (Object.prototype.hasOwnProperty.call(team, "shotsOnGoal")) {
-      const sog = this._asNumberOrNull(team.shotsOnGoal);
-      team.shotsOnGoal = (sog != null) ? sog : team.shotsOnGoal;
-    } else {
-      team.shotsOnGoal = null;
+    const shotKeys = [
+      "shotsOnGoal",
+      "sog",
+      "shots",
+      "shotsTotal",
+      "totalShots",
+      "shotsOnGoalTotal"
+    ];
+
+    let sog = null;
+    for (let i = 0; i < shotKeys.length; i += 1) {
+      const key = shotKeys[i];
+      if (Object.prototype.hasOwnProperty.call(team, key)) {
+        sog = this._asNumberOrNull(team[key]);
+        if (sog != null) break;
+      }
     }
+
+    if (sog == null) {
+      const nestedSources = [team.stats, team.teamStats, team.statistics, team.teamSkaterStats, team.skaterStats];
+      for (let j = 0; j < nestedSources.length; j += 1) {
+        const src = nestedSources[j];
+        if (src && typeof src === "object") {
+          const nestedCandidates = [
+            src.shotsOnGoal,
+            src.sog,
+            src.shots,
+            src.shotsTotal,
+            src.totalShots
+          ];
+          for (let nk = 0; nk < nestedCandidates.length; nk += 1) {
+            const candidate = this._asNumberOrNull(nestedCandidates[nk]);
+            if (candidate != null) {
+              sog = candidate;
+              break;
+            }
+          }
+        }
+        if (sog != null) break;
+      }
+    }
+
+    team.shotsOnGoal = (sog != null) ? sog : null;
     return team;
   },
 
