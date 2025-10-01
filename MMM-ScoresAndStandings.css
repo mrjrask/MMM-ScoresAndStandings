@@ -21,15 +21,16 @@
   --scoreboard-placeholder-height-base: calc(184px * 0.9);
 
   --scoreboard-card-width:    calc(var(--scoreboard-card-width-base) * var(--box-scale));
-  --scoreboard-pad-block:     calc(var(--scoreboard-pad-block-base) * var(--box-scale));
+  --scoreboard-height-scale:  0.9;
+  --scoreboard-pad-block:     calc(var(--scoreboard-pad-block-base) * var(--box-scale) * var(--scoreboard-height-scale));
   --scoreboard-pad-inline:    calc(var(--scoreboard-pad-inline-base) * var(--box-scale));
   --scoreboard-gap:           calc(var(--scoreboard-gap-base) * var(--box-scale));
-  --scoreboard-status-font:   calc((var(--scoreboard-status-font-base) + 2pt) * var(--box-scale));
-  --scoreboard-label-font:    calc((var(--scoreboard-label-font-base) + 2pt) * var(--box-scale));
-  --scoreboard-team-font:     calc((var(--scoreboard-team-font-base) + 2pt) * var(--box-scale));
-  --scoreboard-value-font:    calc((var(--scoreboard-value-font-base) + 2pt) * var(--box-scale));
+  --scoreboard-status-font:   calc((var(--scoreboard-status-font-base) + 2pt) * var(--box-scale) * var(--scoreboard-height-scale));
+  --scoreboard-label-font:    calc((var(--scoreboard-label-font-base) + 2pt) * var(--box-scale) * var(--scoreboard-height-scale));
+  --scoreboard-team-font:     calc((var(--scoreboard-team-font-base) + 2pt) * var(--box-scale) * var(--scoreboard-height-scale));
+  --scoreboard-value-font:    calc((var(--scoreboard-value-font-base) + 2pt) * var(--box-scale) * var(--scoreboard-height-scale));
   --scoreboard-metric-width:  calc(var(--scoreboard-metric-width-base) * var(--box-scale));
-  --scoreboard-placeholder-height: calc(var(--scoreboard-placeholder-height-base) * var(--box-scale));
+  --scoreboard-placeholder-height: calc(var(--scoreboard-placeholder-height-base) * var(--box-scale) * var(--scoreboard-height-scale));
   --scoreboard-font-family: 'Times Square', Arial, sans-serif;
 
   --scoreboard-border-color: #4c4c4c;
