@@ -23,6 +23,10 @@
   var DEFAULT_GAMES_PER_COLUMN          = 2;
   var DEFAULT_GAMES_PER_COLUMN_PRO      = 4;
 
+  var SCOREBOARD_CARD_WIDTH_BASE        = 320;
+  var SCOREBOARD_CARD_WIDTH_BASE_COMPACT = 170;
+  var MATRIX_GAP_BASE                   = 12;
+
   var CONFIG_KEY_ALIASES = {
     gamesPerColumn: ["scoreboardRows", "rowsPerColumn"]
   };
@@ -30,6 +34,7 @@
   var EXTENDED_LAYOUT_LEAGUES = { nfl: true, nhl: true, nba: true };
 
   var SUPPORTED_LEAGUES = ["mlb", "nhl", "nfl", "nba"];
+  var MLB_MAX_GAMES_PER_PAGE = 8;
 
   Module.register("MMM-ScoresAndStandings", {
     defaults: {
@@ -75,6 +80,8 @@
       this.loadedGames = false;
       this.gamesByLeague   = {};
       this.loadedLeagues   = {};
+      this.extrasByLeague  = {};
+      this.currentExtras   = null;
 
       this._leagueRotation    = this._resolveConfiguredLeagues();
       if (!Array.isArray(this._leagueRotation) || this._leagueRotation.length === 0) {
@@ -189,6 +196,12 @@
       this.games = Array.isArray(storedGames) ? storedGames : [];
       var loaded = this.loadedLeagues || {};
       this.loadedGames = !!loaded[league];
+      var extrasStore = this.extrasByLeague || {};
+      if (Object.prototype.hasOwnProperty.call(extrasStore, league)) {
+        this.currentExtras = extrasStore[league];
+      } else {
+        this.currentExtras = null;
+      }
       this.totalGamePages = Math.max(1, Math.ceil(this.games.length / this._gamesPerPage));
       if (this.currentScreen >= this.totalGamePages) this.currentScreen = 0;
     },
@@ -208,7 +221,7 @@
       var styleId = this.identifier + "-width-style";
       var el = document.getElementById(styleId);
       var css =
-        "#" + this.identifier + " .module-header{max-width:" + cap + ";margin:0 auto;display:block;}";
+        "#" + this.identifier + " .module-header{max-width:" + cap + ";margin:0 auto;display:block;width:min(100%,var(--scoreboard-content-width," + cap + "));}";
 
       if (!el) {
         el = document.createElement("style");
@@ -240,10 +253,25 @@
       return DEFAULT_GAMES_PER_COLUMN;
     },
 
+    _minimumLayoutForLeague: function (league) {
+      if (!league) league = this._getLeague();
+      if (EXTENDED_LAYOUT_LEAGUES[league]) {
+        return { columns: DEFAULT_SCOREBOARD_COLUMNS_PRO, rows: DEFAULT_GAMES_PER_COLUMN_PRO };
+      }
+      return { columns: DEFAULT_SCOREBOARD_COLUMNS, rows: DEFAULT_GAMES_PER_COLUMN };
+    },
+
+    _maximumGamesPerPageForLeague: function (league) {
+      if (!league) league = this._getLeague();
+      if (league === "mlb") return MLB_MAX_GAMES_PER_PAGE;
+      return null;
+    },
+
     _syncScoreboardLayout: function () {
       var league        = this._getLeague();
       var defaultCols   = this._defaultColumnsForLeague();
       var defaultRows   = this._defaultRowsForLeague();
+      var minimums      = this._minimumLayoutForLeague(league);
 
       var columns = this._asPositiveInt(
         this._getConfigValueForLeague("scoreboardColumns"),
@@ -254,11 +282,9 @@
         defaultRows
       );
 
-      var requiresExtendedLayout = !!EXTENDED_LAYOUT_LEAGUES[league];
-
-      if (requiresExtendedLayout) {
-        if (columns < defaultCols) columns = defaultCols;
-        if (perColumn < defaultRows) perColumn = defaultRows;
+      if (minimums) {
+        if (columns < minimums.columns) columns = minimums.columns;
+        if (perColumn < minimums.rows) perColumn = minimums.rows;
       }
 
       var gamesPerPage = columns * perColumn;
@@ -266,28 +292,109 @@
 
       if (gamesPerPageConfig != null) {
         var override = this._asPositiveInt(gamesPerPageConfig, gamesPerPage);
+        if (override < columns) override = columns;
         var computedRows = Math.max(1, Math.ceil(override / columns));
-
-        if (requiresExtendedLayout) {
-          if (computedRows < defaultRows) computedRows = defaultRows;
-          perColumn = computedRows;
+        if (minimums && computedRows < minimums.rows) computedRows = minimums.rows;
+        perColumn = computedRows;
+        gamesPerPage = columns * perColumn;
+        if (gamesPerPage < override) {
+          perColumn = Math.max(perColumn, Math.ceil(override / columns));
+          if (minimums && perColumn < minimums.rows) perColumn = minimums.rows;
           gamesPerPage = columns * perColumn;
-          if (gamesPerPage < override) {
-            perColumn = Math.max(perColumn, Math.ceil(override / columns));
-            gamesPerPage = columns * perColumn;
-          }
-        } else {
-          perColumn = computedRows;
-          gamesPerPage = override;
         }
       } else {
         gamesPerPage = columns * perColumn;
+      }
+
+      var maxGames = this._maximumGamesPerPageForLeague(league);
+      if (typeof maxGames === "number" && isFinite(maxGames) && maxGames > 0) {
+        var minColumns = minimums ? minimums.columns : 1;
+        var minRows = minimums ? minimums.rows : 1;
+
+        if (columns > maxGames) columns = Math.max(minColumns, Math.min(columns, maxGames));
+        if (perColumn > maxGames) perColumn = Math.max(minRows, Math.min(perColumn, maxGames));
+
+        var maxRowsForColumns = Math.floor(maxGames / Math.max(columns, 1));
+        if (maxRowsForColumns < minRows) maxRowsForColumns = minRows;
+        if (maxRowsForColumns < 1) maxRowsForColumns = 1;
+        if (perColumn > maxRowsForColumns) perColumn = maxRowsForColumns;
+
+        var layoutGames = columns * perColumn;
+        if (layoutGames > maxGames) {
+          while (columns > minColumns && layoutGames > maxGames) {
+            columns -= 1;
+            if (columns < minColumns) {
+              columns = minColumns;
+              break;
+            }
+
+            maxRowsForColumns = Math.floor(maxGames / Math.max(columns, 1));
+            if (maxRowsForColumns < minRows) maxRowsForColumns = minRows;
+            if (maxRowsForColumns < 1) maxRowsForColumns = 1;
+            if (perColumn > maxRowsForColumns) perColumn = maxRowsForColumns;
+
+            layoutGames = columns * perColumn;
+          }
+
+          if (layoutGames > maxGames) {
+            var allowableRows = Math.floor(maxGames / Math.max(columns, 1));
+            if (allowableRows < minRows) allowableRows = minRows;
+            if (allowableRows < 1) allowableRows = 1;
+            perColumn = Math.min(perColumn, allowableRows);
+            layoutGames = columns * perColumn;
+          }
+        }
+
+        gamesPerPage = Math.min(maxGames, columns * perColumn);
       }
 
       this._scoreboardColumns = columns;
       this._scoreboardRows    = perColumn;
       this._gamesPerPage      = Math.max(1, gamesPerPage);
       this._layoutScale       = this._resolveLayoutScale();
+    },
+
+    _parsePixelValue: function (value) {
+      if (value == null) return null;
+      if (typeof value === "number" && isFinite(value)) return value;
+      var str = String(value).trim();
+      if (!str) return null;
+      if (/^\d+$/.test(str)) return parseInt(str, 10);
+      var match = str.match(/^(\d+(?:\.\d+)?)px$/i);
+      if (match) return parseFloat(match[1]);
+      return null;
+    },
+
+    _estimateContentWidth: function () {
+      var columns = this._scoreboardColumns;
+      if (!columns || columns <= 0) return null;
+
+      var scale = (typeof this._layoutScale === "number") ? this._layoutScale : this._resolveLayoutScale();
+      if (!(typeof scale === "number" && isFinite(scale) && scale > 0)) scale = 1;
+
+      var league = this._getLeague();
+      var baseWidth = EXTENDED_LAYOUT_LEAGUES[league]
+        ? SCOREBOARD_CARD_WIDTH_BASE_COMPACT
+        : SCOREBOARD_CARD_WIDTH_BASE;
+
+      var cardWidth = baseWidth * scale;
+      var gap = MATRIX_GAP_BASE * scale;
+      var width = columns * cardWidth + Math.max(0, columns - 1) * gap;
+
+      var cap = this._parsePixelValue(this.config && this.config.maxWidth);
+      if (cap != null && width > cap) width = cap;
+
+      return width;
+    },
+
+    _setModuleContentWidth: function (widthPx) {
+      var id = this.identifier || (this.data && this.data.identifier);
+      if (!id) return;
+      var root = document.getElementById(id);
+      if (!root) return;
+
+      if (widthPx) root.style.setProperty("--scoreboard-content-width", widthPx);
+      else root.style.removeProperty("--scoreboard-content-width");
     },
 
     _getConfigValueForLeague: function (key) {
@@ -590,9 +697,15 @@
           var league = null;
           var games = [];
 
+          var extras = null;
+
           if (payload && typeof payload === "object" && !Array.isArray(payload)) {
             league = this._normalizeLeagueKey(payload.league);
             if (Array.isArray(payload.games)) games = payload.games;
+            if (Object.prototype.hasOwnProperty.call(payload, "teamsOnBye")) {
+              extras = extras || {};
+              extras.teamsOnBye = Array.isArray(payload.teamsOnBye) ? payload.teamsOnBye : [];
+            }
           } else if (Array.isArray(payload)) {
             games = payload;
           }
@@ -604,6 +717,13 @@
 
           if (!this.loadedLeagues) this.loadedLeagues = {};
           this.loadedLeagues[league] = true;
+
+          if (!this.extrasByLeague) this.extrasByLeague = {};
+          if (extras && Object.keys(extras).length > 0) {
+            this.extrasByLeague[league] = extras;
+          } else if (Object.prototype.hasOwnProperty.call(this.extrasByLeague, league)) {
+            delete this.extrasByLeague[league];
+          }
 
           if (!Array.isArray(this._leagueRotation) || this._leagueRotation.length === 0) {
             this._leagueRotation = [league];
@@ -649,13 +769,20 @@
         wrapper.style.overflow = "hidden";
       }
 
-      if (!this.loadedGames) return this._noData("Loading games...");
-      if (this.games.length === 0) return this._noData("No games to display.");
+      if (!this.loadedGames) {
+        this._setModuleContentWidth(null);
+        return this._noData("Loading games...");
+      }
+      if (this.games.length === 0) {
+        this._setModuleContentWidth(null);
+        return this._noData("No games to display.");
+      }
 
       try {
         wrapper.appendChild(this._buildGames());
       } catch (e) {
         console.error("MMM-ScoresAndStandings: getDom build error", e);
+        this._setModuleContentWidth(null);
         return this._noData("Error building view.");
       }
       return wrapper;
@@ -665,6 +792,9 @@
     _buildGames: function () {
       this._syncScoreboardLayout();
 
+      var container = document.createElement("div");
+      container.className = "games-layout";
+
       var start = this.currentScreen * this._gamesPerPage;
       var games = this.games.slice(start, start + this._gamesPerPage);
 
@@ -672,7 +802,10 @@
       matrix.className = "games-matrix";
 
       var activeLeague = this._getLeague();
-      if (activeLeague) matrix.classList.add("league-" + activeLeague);
+      if (activeLeague) {
+        matrix.classList.add("league-" + activeLeague);
+        container.classList.add("league-" + activeLeague);
+      }
 
       matrix.style.setProperty("--games-matrix-columns", this._scoreboardColumns);
 
@@ -717,7 +850,107 @@
         }
       }
 
-      return matrix;
+      container.appendChild(matrix);
+
+      var estimatedWidth = this._estimateContentWidth();
+      var widthPx = null;
+      if (typeof estimatedWidth === "number" && isFinite(estimatedWidth) && estimatedWidth > 0) {
+        var widthStr = estimatedWidth.toFixed(2);
+        if (widthStr.indexOf(".") !== -1) {
+          widthStr = widthStr.replace(/\.00$/, "").replace(/(\.[0-9])0$/, "$1");
+        }
+        widthPx = widthStr + "px";
+      }
+
+      container.style.width = "100%";
+
+      if (widthPx) {
+        container.style.maxWidth = widthPx;
+        container.style.setProperty("--scoreboard-content-width", widthPx);
+      } else {
+        container.style.removeProperty("max-width");
+        container.style.removeProperty("--scoreboard-content-width");
+      }
+
+      this._setModuleContentWidth(widthPx);
+
+      if (activeLeague === "nfl") {
+        var extras = this.currentExtras;
+        var byeTeams = extras && Array.isArray(extras.teamsOnBye) ? extras.teamsOnBye : [];
+        var byeSection = this._buildNflByeSection(byeTeams);
+        if (byeSection) container.appendChild(byeSection);
+      }
+
+      return container;
+    },
+
+    _buildNflByeSection: function (byeTeams) {
+      if (!Array.isArray(byeTeams) || byeTeams.length === 0) return null;
+
+      var normalized = [];
+      for (var i = 0; i < byeTeams.length; i++) {
+        var entry = byeTeams[i];
+        if (!entry) continue;
+        var abbr = entry.abbreviation || entry.abbr || entry.teamAbbr || entry.uid || entry.id;
+        if (!abbr) continue;
+        abbr = String(abbr).toUpperCase();
+        var name = entry.displayName || entry.shortDisplayName || entry.name || entry.location || abbr;
+        normalized.push({ abbr: abbr, name: name });
+      }
+
+      if (normalized.length === 0) return null;
+
+      normalized.sort(function (a, b) {
+        if (a.abbr < b.abbr) return -1;
+        if (a.abbr > b.abbr) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      var section = document.createElement("div");
+      section.className = "bye-week-section";
+
+      var title = document.createElement("div");
+      title.className = "bye-week-title";
+      title.textContent = "Teams on Bye";
+      section.appendChild(title);
+
+      var list = document.createElement("div");
+      list.className = "bye-week-list";
+      section.appendChild(list);
+
+      for (var j = 0; j < normalized.length; j++) {
+        var team = normalized[j];
+        var item = document.createElement("div");
+        item.className = "bye-week-team";
+        item.title = team.name;
+
+        var logo = document.createElement("img");
+        logo.className = "bye-week-team-logo";
+        logo.src = this.getLogoUrl(team.abbr);
+        logo.alt = team.abbr;
+        logo.onerror = (function (imgEl) { return function () { imgEl.style.display = "none"; }; })(logo);
+        item.appendChild(logo);
+
+        var textWrap = document.createElement("div");
+        textWrap.className = "bye-week-team-text";
+
+        var abbrEl = document.createElement("span");
+        abbrEl.className = "bye-week-team-abbr";
+        abbrEl.textContent = team.abbr;
+        textWrap.appendChild(abbrEl);
+
+        if (team.name && team.name !== team.abbr) {
+          var nameEl = document.createElement("span");
+          nameEl.className = "bye-week-team-name";
+          nameEl.textContent = team.name;
+          textWrap.appendChild(nameEl);
+        }
+
+        item.appendChild(textWrap);
+        list.appendChild(item);
+      }
+
+      return section;
     },
 
     createGameBox: function (game) {

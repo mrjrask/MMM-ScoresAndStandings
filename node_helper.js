@@ -984,6 +984,7 @@ module.exports = NodeHelper.create({
       } = this._getNflWeekDateRange();
 
       const aggregated = new Map();
+      const byeTeams = new Map();
 
       for (let i = 0; i < dateIsos.length; i += 1) {
         const dateIso = dateIsos[i];
@@ -994,12 +995,19 @@ module.exports = NodeHelper.create({
           const res = await fetch(url);
           const json = await res.json();
           const events = Array.isArray(json.events) ? json.events : [];
+          const week = json && json.week;
+          const teamsOnBye = week && Array.isArray(week.teamsOnBye) ? week.teamsOnBye : [];
 
           for (let j = 0; j < events.length; j += 1) {
             const event = events[j];
             if (!event) continue;
             const key = event.id || event.uid || `${dateIso}-${j}`;
             if (!aggregated.has(key)) aggregated.set(key, event);
+          }
+
+          for (let b = 0; b < teamsOnBye.length; b += 1) {
+            const bye = this._normalizeNflByeTeam(teamsOnBye[b]);
+            if (bye) byeTeams.set(bye.abbreviation, bye);
           }
         } catch (err) {
           console.error(`🚨 NFL fetchGames failed for ${dateIso}:`, err);
@@ -1027,8 +1035,11 @@ module.exports = NodeHelper.create({
         return 0;
       });
 
-      console.log(`🏈 Sending ${games.length} NFL games (${startIso} → ${endIso}) to front-end.`);
-      this._notifyGames("nfl", games);
+      const byeList = Array.from(byeTeams.values());
+      byeList.sort((a, b) => a.abbreviation.localeCompare(b.abbreviation));
+
+      console.log(`🏈 Sending ${games.length} NFL games (${startIso} → ${endIso}) to front-end.${byeList.length ? ` ${byeList.length} teams on bye.` : ""}`);
+      this._notifyGames("nfl", games, { teamsOnBye: byeList });
     } catch (e) {
       console.error("🚨 NFL fetchGames failed:", e);
     }
@@ -1055,12 +1066,45 @@ module.exports = NodeHelper.create({
     return "mlb";
   },
 
-  _notifyGames(league, games) {
-    const normalizedLeague = this._normalizeLeagueKey(league) || this._getLeague();
-    const payload = {
-      league: normalizedLeague,
-      games: Array.isArray(games) ? games : []
+  _normalizeNflByeTeam(team) {
+    if (!team) return null;
+
+    const abbreviationSource =
+      team.abbreviation || team.shortDisplayName || team.name || team.location || "";
+    const abbreviation = String(abbreviationSource).trim();
+    if (!abbreviation) return null;
+
+    const normalizedAbbr = abbreviation.toUpperCase();
+    const nameSource =
+      team.displayName || team.name || team.shortDisplayName || team.location || normalizedAbbr;
+    const displayName = String(nameSource).trim() || normalizedAbbr;
+
+    return {
+      id: team.id || team.uid || normalizedAbbr,
+      abbreviation: normalizedAbbr,
+      displayName,
+      shortDisplayName: team.shortDisplayName || null
     };
+  },
+
+  _notifyGames(league, games, extras = null) {
+    const normalizedLeague = this._normalizeLeagueKey(league) || this._getLeague();
+    let normalizedGames;
+    if (Array.isArray(games)) normalizedGames = games;
+    else if (games && typeof games === "object" && Array.isArray(games.games)) {
+      normalizedGames = games.games;
+    } else {
+      normalizedGames = [];
+    }
+
+    const payload = { league: normalizedLeague, games: normalizedGames };
+
+    if (extras && typeof extras === "object") {
+      Object.keys(extras).forEach((key) => {
+        payload[key] = extras[key];
+      });
+    }
+
     this.sendSocketNotification("GAMES", payload);
   },
 
