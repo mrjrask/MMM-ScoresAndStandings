@@ -877,8 +877,12 @@
       if (activeLeague === "nfl") {
         var extras = this.currentExtras;
         var byeTeams = extras && Array.isArray(extras.teamsOnBye) ? extras.teamsOnBye : [];
-        var byeSection = this._buildNflByeSection(byeTeams);
-        if (byeSection) container.appendChild(byeSection);
+        var totalPages = Math.max(1, this.totalGamePages || 1);
+        var onLastPage = this.currentScreen >= (totalPages - 1);
+        if (onLastPage) {
+          var byeSection = this._buildNflByeSection(byeTeams);
+          if (byeSection) container.appendChild(byeSection);
+        }
       }
 
       return container;
