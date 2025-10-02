@@ -676,13 +676,26 @@
 
       matrix.style.setProperty("--games-matrix-columns", this._scoreboardColumns);
 
+      var totalSlots = this._scoreboardColumns * this._scoreboardRows;
+      var orderedGames = new Array(totalSlots);
+      var isRightPlacement = this.data && typeof this.data.position === "string" && this.data.position.indexOf("_right") !== -1;
+
+      var limit = games.length < totalSlots ? games.length : totalSlots;
+      for (var gi = 0; gi < limit; gi++) {
+        var columnIndex = Math.floor(gi / this._scoreboardRows);
+        if (isRightPlacement) columnIndex = (this._scoreboardColumns - 1) - columnIndex;
+        var rowIndex = gi % this._scoreboardRows;
+        var slotIndex = rowIndex * this._scoreboardColumns + columnIndex;
+        orderedGames[slotIndex] = games[gi];
+      }
+
       for (var r = 0; r < this._scoreboardRows; r++) {
         for (var c = 0; c < this._scoreboardColumns; c++) {
           var index = r * this._scoreboardColumns + c;
           var cell = document.createElement("div");
           cell.className = "games-matrix-cell";
 
-          var game = games[index];
+          var game = orderedGames[index];
           if (game) {
             var card = this.createGameBox(game);
             if (card) {
