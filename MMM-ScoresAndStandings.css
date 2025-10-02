@@ -8,8 +8,8 @@
   --box-scale: 1;
 
   /* ===== Scoreboard ===== */
-  --scoreboard-card-width-base:      320px;
-  --scoreboard-card-width-base-nfl:  170px;
+  --scoreboard-card-width-base:            320px;
+  --scoreboard-card-width-base-compact:    170px;
   --scoreboard-pad-block-base:         9px;
   --scoreboard-pad-inline-base:       14px;
   --scoreboard-gap-base:               8px;
@@ -86,10 +86,10 @@
 }
 
 .games-matrix.league-nfl,
+.games-matrix.league-nhl,
 .games-matrix.league-nba {
-  --scoreboard-card-width-base: var(--scoreboard-card-width-base-nfl);
-  --scoreboard-card-width: calc(var(--scoreboard-card-width-base-nfl) * var(--box-scale));
-  --games-matrix-col-width: calc(var(--scoreboard-card-width-base-nfl) * var(--box-scale));
+  --scoreboard-card-width-base: var(--scoreboard-card-width-base-compact);
+  --games-matrix-col-width: calc(var(--scoreboard-card-width-base) * var(--box-scale));
 }
 
 .games-matrix-cell {
@@ -141,10 +141,9 @@
 }
 
 .scoreboard-card.league-nfl,
-.scoreboard-card.league-nba,
-.scoreboard-card.league-nhl {
-  --scoreboard-card-width-base: var(--scoreboard-card-width-base-nfl);
-  --scoreboard-card-width: calc(var(--scoreboard-card-width-base-nfl) * var(--box-scale));
+.scoreboard-card.league-nhl,
+.scoreboard-card.league-nba {
+  --scoreboard-card-width-base: var(--scoreboard-card-width-base-compact);
 }
 
 .scoreboard-card .scoreboard-header,
