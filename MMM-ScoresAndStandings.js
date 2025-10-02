@@ -23,6 +23,10 @@
   var DEFAULT_GAMES_PER_COLUMN          = 2;
   var DEFAULT_GAMES_PER_COLUMN_PRO      = 4;
 
+  var CONFIG_KEY_ALIASES = {
+    gamesPerColumn: ["scoreboardRows", "rowsPerColumn"]
+  };
+
   var EXTENDED_LAYOUT_LEAGUES = { nfl: true, nhl: true, nba: true };
 
   var SUPPORTED_LEAGUES = ["mlb", "nhl", "nfl", "nba"];
@@ -291,32 +295,62 @@
       var league = this._getLeague();
       if (!cfg) return null;
 
-      if (league) {
-        var leagueKey = key + "_" + league;
-        if (Object.prototype.hasOwnProperty.call(cfg, leagueKey)) {
-          return cfg[leagueKey];
-        }
-      }
+      var keysToCheck = this._expandConfigKeyAliases(key);
 
-      var base = cfg[key];
-      if (base != null && typeof base === "object" && !Array.isArray(base)) {
+      for (var i = 0; i < keysToCheck.length; i++) {
+        var currentKey = keysToCheck[i];
+
         if (league) {
-          var lower = base[league];
-          if (typeof lower !== "undefined") return lower;
-
-          var lcase = league.toLowerCase();
-          if (Object.prototype.hasOwnProperty.call(base, lcase)) return base[lcase];
-
-          var ucase = league.toUpperCase();
-          if (Object.prototype.hasOwnProperty.call(base, ucase)) return base[ucase];
+          var leagueKey = currentKey + "_" + league;
+          if (Object.prototype.hasOwnProperty.call(cfg, leagueKey)) {
+            return cfg[leagueKey];
+          }
         }
 
-        if (Object.prototype.hasOwnProperty.call(base, "default")) {
-          return base.default;
+        var base = cfg[currentKey];
+        if (base != null && typeof base === "object" && !Array.isArray(base)) {
+          if (league) {
+            var lower = base[league];
+            if (typeof lower !== "undefined") return lower;
+
+            var lcase = league.toLowerCase();
+            if (Object.prototype.hasOwnProperty.call(base, lcase)) return base[lcase];
+
+            var ucase = league.toUpperCase();
+            if (Object.prototype.hasOwnProperty.call(base, ucase)) return base[ucase];
+          }
+
+          if (Object.prototype.hasOwnProperty.call(base, "default")) {
+            return base.default;
+          }
+        }
+
+        if (typeof base !== "undefined") return base;
+      }
+
+      return undefined;
+    },
+
+    _expandConfigKeyAliases: function (key) {
+      var seen = {};
+      var list = [];
+      var enqueue = function (k) {
+        if (k && !seen[k]) {
+          seen[k] = true;
+          list.push(k);
+        }
+      };
+
+      enqueue(key);
+
+      var aliases = CONFIG_KEY_ALIASES[key];
+      if (Array.isArray(aliases)) {
+        for (var i = 0; i < aliases.length; i++) {
+          enqueue(aliases[i]);
         }
       }
 
-      return base;
+      return list;
     },
 
     _resolveLayoutScale: function () {
