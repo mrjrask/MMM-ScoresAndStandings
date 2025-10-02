@@ -19,11 +19,11 @@
 
   // Scoreboard layout defaults (can be overridden via config)
   var DEFAULT_SCOREBOARD_COLUMNS        = 2;
-  var DEFAULT_SCOREBOARD_COLUMNS_NFL    = 4;
-  var DEFAULT_SCOREBOARD_COLUMNS_NBA    = 4;
+  var DEFAULT_SCOREBOARD_COLUMNS_PRO    = 4;
   var DEFAULT_GAMES_PER_COLUMN          = 2;
-  var DEFAULT_GAMES_PER_COLUMN_NFL      = 4;
-  var DEFAULT_GAMES_PER_COLUMN_NBA      = 4;
+  var DEFAULT_GAMES_PER_COLUMN_PRO      = 4;
+
+  var EXTENDED_LAYOUT_LEAGUES = { nfl: true, nhl: true, nba: true };
 
   var SUPPORTED_LEAGUES = ["mlb", "nhl", "nfl", "nba"];
 
@@ -226,15 +226,13 @@
 
     _defaultColumnsForLeague: function () {
       var league = this._getLeague();
-      if (league === "nfl") return DEFAULT_SCOREBOARD_COLUMNS_NFL;
-      if (league === "nba") return DEFAULT_SCOREBOARD_COLUMNS_NBA;
+      if (EXTENDED_LAYOUT_LEAGUES[league]) return DEFAULT_SCOREBOARD_COLUMNS_PRO;
       return DEFAULT_SCOREBOARD_COLUMNS;
     },
 
     _defaultRowsForLeague: function () {
       var league = this._getLeague();
-      if (league === "nfl") return DEFAULT_GAMES_PER_COLUMN_NFL;
-      if (league === "nba") return DEFAULT_GAMES_PER_COLUMN_NBA;
+      if (EXTENDED_LAYOUT_LEAGUES[league]) return DEFAULT_GAMES_PER_COLUMN_PRO;
       return DEFAULT_GAMES_PER_COLUMN;
     },
 
@@ -252,7 +250,9 @@
         defaultRows
       );
 
-      if (league === "nfl" || league === "nba") {
+      var requiresExtendedLayout = !!EXTENDED_LAYOUT_LEAGUES[league];
+
+      if (requiresExtendedLayout) {
         if (columns < defaultCols) columns = defaultCols;
         if (perColumn < defaultRows) perColumn = defaultRows;
       }
@@ -264,7 +264,7 @@
         var override = this._asPositiveInt(gamesPerPageConfig, gamesPerPage);
         var computedRows = Math.max(1, Math.ceil(override / columns));
 
-        if (league === "nfl" || league === "nba") {
+        if (requiresExtendedLayout) {
           if (computedRows < defaultRows) computedRows = defaultRows;
           perColumn = computedRows;
           gamesPerPage = columns * perColumn;
