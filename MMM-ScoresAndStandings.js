@@ -634,20 +634,20 @@
       var start = this.currentScreen * this._gamesPerPage;
       var games = this.games.slice(start, start + this._gamesPerPage);
 
-      var matrix = document.createElement("table");
+      var matrix = document.createElement("div");
       matrix.className = "games-matrix";
 
-      var tbody = document.createElement("tbody");
+      var activeLeague = this._getLeague();
+      if (activeLeague) matrix.classList.add("league-" + activeLeague);
+
+      matrix.style.setProperty("--games-matrix-columns", this._scoreboardColumns);
 
       for (var r = 0; r < this._scoreboardRows; r++) {
-        var row = document.createElement("tr");
-
         for (var c = 0; c < this._scoreboardColumns; c++) {
-          var cell = document.createElement("td");
-          cell.className = "games-matrix-cell";
-          cell.style.setProperty("--games-matrix-col-width", (100 / this._scoreboardColumns) + "%");
-
           var index = r * this._scoreboardColumns + c;
+          var cell = document.createElement("div");
+          cell.className = "games-matrix-cell";
+
           var game = games[index];
           if (game) {
             var card = this.createGameBox(game);
@@ -666,13 +666,10 @@
             cell.classList.add("empty");
           }
 
-          row.appendChild(cell);
+          matrix.appendChild(cell);
         }
-
-        tbody.appendChild(row);
       }
 
-      matrix.appendChild(tbody);
       return matrix;
     },
 
