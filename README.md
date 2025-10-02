@@ -92,6 +92,7 @@ Add to your `config/config.js`:
 - **Highlighted teams** accept a single string `"CUBS"` or an array like `["CUBS","NYY"]` for the league-specific settings `highlightedTeams_mlb`, `highlightedTeams_nhl`, `highlightedTeams_nfl`, and `highlightedTeams_nba`.
 - **layoutScale** is the quickest way to fix oversize boxes—values below `1` compact the layout.
 - The default scoreboard layout shows **two columns and up to four games** for MLB, and **four columns with four rows (16 games)** for NHL/NFL/NBA. Adjust `scoreboardColumns`, `gamesPerColumn`, or `gamesPerPage` to taste.
+- Prefer `scoreboardRows` instead of `gamesPerColumn`? Use either name (or add `_mlb`, `_nhl`, etc.)—they behave identically.
 
 ---
 
