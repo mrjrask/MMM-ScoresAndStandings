@@ -75,30 +75,34 @@
 --------------------------------------------------*/
 
 .games-matrix {
-  border-collapse: separate;
-  border-spacing: var(--matrix-gap) var(--matrix-gap);
+  display: grid;
+  grid-template-columns: repeat(var(--games-matrix-columns, 1), minmax(0, var(--games-matrix-col-width, var(--scoreboard-card-width))));
+  gap: var(--matrix-gap);
   margin: 0;
-  table-layout: auto;
+  padding: 0;
   width: auto;
+  justify-content: center;
+  align-items: start;
+}
+
+.games-matrix.league-nfl,
+.games-matrix.league-nba {
+  --scoreboard-card-width-base: var(--scoreboard-card-width-base-nfl);
+  --scoreboard-card-width: calc(var(--scoreboard-card-width-base-nfl) * var(--box-scale));
+  --games-matrix-col-width: calc(var(--scoreboard-card-width-base-nfl) * var(--box-scale));
 }
 
 .games-matrix-cell {
-  vertical-align: top;
-  padding: 0;
+  width: var(--games-matrix-col-width, var(--scoreboard-card-width));
+  display: flex;
+  align-items: stretch;
   text-align: left;
-  width: var(--scoreboard-card-width);
-}
-
-.games-matrix-cell.league-nfl,
-.games-matrix-cell.league-nba {
-  --scoreboard-card-width-base: var(--scoreboard-card-width-base-nfl);
-  --scoreboard-card-width: calc(var(--scoreboard-card-width-base-nfl) * var(--box-scale));
 }
 
 .games-matrix-cell.empty::before {
   content: "";
-  display: inline-block;
-  width: var(--scoreboard-card-width);
+  display: block;
+  width: 100%;
   height: var(--scoreboard-placeholder-height);
   border-radius: var(--scoreboard-card-radius);
   background: rgba(0, 0, 0, 0.55);
@@ -106,6 +110,7 @@
 }
 
 .games-matrix-cell > .scoreboard-card {
+  width: 100%;
   margin: 0;
 }
 
