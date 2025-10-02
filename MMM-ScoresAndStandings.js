@@ -813,6 +813,8 @@
 
           var placeholder = "—";
           var val = null;
+          var superscript = null;
+          var superscriptClasses = [];
 
           if (metric != null && typeof metric === "object" && !Array.isArray(metric)) {
             if (Object.prototype.hasOwnProperty.call(metric, "placeholder")) {
@@ -820,6 +822,24 @@
             }
             if (Object.prototype.hasOwnProperty.call(metric, "value")) {
               val = metric.value;
+            }
+            if (Object.prototype.hasOwnProperty.call(metric, "superscript")) {
+              superscript = metric.superscript;
+            }
+            var supClass = null;
+            if (Object.prototype.hasOwnProperty.call(metric, "superscriptClass")) {
+              supClass = metric.superscriptClass;
+            } else if (Object.prototype.hasOwnProperty.call(metric, "supClass")) {
+              supClass = metric.supClass;
+            }
+            if (supClass) {
+              if (Array.isArray(supClass)) {
+                for (var sci = 0; sci < supClass.length; sci++) {
+                  if (supClass[sci]) superscriptClasses.push(supClass[sci]);
+                }
+              } else if (typeof supClass === "string") {
+                superscriptClasses.push(supClass);
+              }
             }
           } else {
             val = metric;
@@ -830,6 +850,15 @@
               valueEl.textContent = "";
             } else {
               valueEl.textContent = String(val);
+              if (superscript != null && superscript !== "") {
+                var supEl = document.createElement("sup");
+                supEl.className = "scoreboard-value-superscript";
+                for (var supIdx = 0; supIdx < superscriptClasses.length; supIdx++) {
+                  if (superscriptClasses[supIdx]) supEl.classList.add(superscriptClasses[supIdx]);
+                }
+                supEl.textContent = String(superscript);
+                valueEl.appendChild(supEl);
+              }
             }
           } else {
             valueEl.textContent = placeholder;
@@ -1027,8 +1056,12 @@
 
         var goals = this._firstNumber(entry.score, entry.goals, entry.team && entry.team.score);
         var metrics = [
-          goals,
-          (i === 0 ? awayShots : homeShots)
+          {
+            value: goals,
+            placeholder: "—",
+            superscript: (i === 0 ? awayShots : homeShots),
+            superscriptClass: "shots-on-goal-superscript"
+          }
         ];
 
         rows.push({
@@ -1048,9 +1081,8 @@
         live: isLive,
         showValues: showVals,
         statusText: statusText,
-        metricLabels: ["G", "SOG"],
-        metricLabelClasses: [null, "shots-on-goal-label"],
-        metricValueClasses: [null, "shots-on-goal-value"],
+        metricLabels: ["G"],
+        metricValueClasses: ["shots-on-goal-value"],
         rows: rows,
         cardClasses: cardClasses
       });
