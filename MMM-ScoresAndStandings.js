@@ -98,6 +98,9 @@
       this.currentScreen  = 0;
       this.rotateTimer    = null;
       this._headerStyleInjectedFor = null;
+      this._rightPlacement = this._detectRightPlacement(false);
+      this._placementCheckTimer = null;
+      this._lastRenderedDom = null;
 
       this._applyActiveLeagueState();
 
@@ -108,6 +111,12 @@
       setInterval(sendInit, refreshInterval);
 
       this._scheduleRotate();
+    },
+
+    notificationReceived: function (notification) {
+      if (notification === "MODULE_DOM_CREATED" || notification === "DOM_OBJECTS_CREATED") {
+        this._schedulePlacementCheck(100);
+      }
     },
 
     // ---------- helpers ----------
@@ -169,6 +178,80 @@
         }
       }
       return normalized;
+    },
+
+    _extractModulePosition: function () {
+      if (this.data && typeof this.data.position === "string") {
+        var pos = this.data.position.trim();
+        if (pos) return pos;
+      }
+      if (this.config && typeof this.config.position === "string") {
+        var cfgPos = this.config.position.trim();
+        if (cfgPos) return cfgPos;
+      }
+      if (this.data && this.data.config && typeof this.data.config.position === "string") {
+        var dataPos = this.data.config.position.trim();
+        if (dataPos) return dataPos;
+      }
+      return null;
+    },
+
+    _detectRightPlacement: function (allowDom) {
+      var pos = this._extractModulePosition();
+      if (pos) {
+        if (pos.indexOf("_right") !== -1 || /(^|_|-)right$/i.test(pos)) return true;
+        if (pos.indexOf("_left") !== -1 || /(^|_|-)left$/i.test(pos)) return false;
+        if (pos.indexOf("_center") !== -1 || /(^|_|-)center$/i.test(pos)) return false;
+      }
+
+      if (allowDom !== false && typeof document !== "undefined" && document.getElementById) {
+        var dom = document.getElementById(this.identifier);
+        if (!dom && this._lastRenderedDom) dom = this._lastRenderedDom;
+
+        var node = dom;
+        while (node) {
+          if (node.classList && node.classList.contains("region")) {
+            if (node.classList.contains("right")) return true;
+            return false;
+          }
+          node = node.parentElement;
+        }
+      }
+
+      return null;
+    },
+
+    _shouldUseRightPlacement: function () {
+      if (typeof this._rightPlacement === "boolean") return this._rightPlacement;
+      var detected = this._detectRightPlacement(false);
+      if (typeof detected === "boolean") {
+        this._rightPlacement = detected;
+        return detected;
+      }
+      return false;
+    },
+
+    _schedulePlacementCheck: function (delay) {
+      if (typeof delay !== "number" || !isFinite(delay) || delay < 0) delay = 200;
+      if (this._placementCheckTimer != null) return;
+
+      var self = this;
+      this._placementCheckTimer = setTimeout(function () {
+        self._placementCheckTimer = null;
+        self._verifyPlacementFromDom();
+      }, delay);
+    },
+
+    _verifyPlacementFromDom: function () {
+      var detected = this._detectRightPlacement(true);
+      if (typeof detected === "boolean") {
+        if (detected !== this._rightPlacement) {
+          this._rightPlacement = detected;
+          this.updateDom();
+        }
+      } else {
+        this._schedulePlacementCheck(500);
+      }
     },
 
     _resolveConfiguredLeagues: function () {
@@ -785,6 +868,7 @@
         this._setModuleContentWidth(null);
         return this._noData("Error building view.");
       }
+      this._lastRenderedDom = wrapper;
       return wrapper;
     },
 
@@ -811,7 +895,7 @@
 
       var totalSlots = this._scoreboardColumns * this._scoreboardRows;
       var orderedGames = new Array(totalSlots);
-      var isRightPlacement = this.data && typeof this.data.position === "string" && this.data.position.indexOf("_right") !== -1;
+      var isRightPlacement = this._shouldUseRightPlacement();
 
       var limit = games.length < totalSlots ? games.length : totalSlots;
       for (var gi = 0; gi < limit; gi++) {
