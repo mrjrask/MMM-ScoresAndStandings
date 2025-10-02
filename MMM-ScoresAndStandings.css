@@ -90,7 +90,8 @@
 }
 
 .games-matrix-cell.league-nfl,
-.games-matrix-cell.league-nba {
+.games-matrix-cell.league-nba,
+.games-matrix-cell.league-nhl {
   --scoreboard-card-width-base: var(--scoreboard-card-width-base-nfl);
   --scoreboard-card-width: calc(var(--scoreboard-card-width-base-nfl) * var(--box-scale));
 }
@@ -136,7 +137,8 @@
 }
 
 .scoreboard-card.league-nfl,
-.scoreboard-card.league-nba {
+.scoreboard-card.league-nba,
+.scoreboard-card.league-nhl {
   --scoreboard-card-width-base: var(--scoreboard-card-width-base-nfl);
   --scoreboard-card-width: calc(var(--scoreboard-card-width-base-nfl) * var(--box-scale));
 }
@@ -250,12 +252,16 @@
   color: var(--scoreboard-value-color);
 }
 
-.scoreboard-card.league-nhl .scoreboard-label.shots-on-goal-label {
-  font-size: max(0px, calc(var(--scoreboard-label-font) - 5pt));
+.scoreboard-value-superscript {
+  font-size: 0.55em;
+  margin-left: 0.25em;
+  vertical-align: super;
+  font-weight: 600;
+  color: var(--scoreboard-muted);
 }
 
-.scoreboard-card.league-nhl .scoreboard-value.shots-on-goal-value {
-  font-size: max(0px, calc(var(--scoreboard-value-font) - 5pt));
+.scoreboard-card.league-nhl .scoreboard-value.shots-on-goal-value sup {
+  color: var(--scoreboard-muted);
 }
 
 .scoreboard-card.league-nfl .scoreboard-header,
