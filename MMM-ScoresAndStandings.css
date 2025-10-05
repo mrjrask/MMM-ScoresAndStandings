@@ -343,7 +343,7 @@
 }
 
 .scoreboard-card.league-nhl .scoreboard-value.shots-on-goal-value sup {
-  color: var(--scoreboard-muted);
+  color: var(--scoreboard-text);
 }
 
 .scoreboard-card.league-nfl .scoreboard-header,
