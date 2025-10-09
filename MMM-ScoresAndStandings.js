@@ -51,6 +51,7 @@
       highlightedTeams_nhl:             [],
       highlightedTeams_nfl:             [],
       highlightedTeams_nba:             [],
+      showNhlStandings:                 true,
       showTitle:                        true,
       useTimesSquareFont:               true,
 
@@ -97,6 +98,8 @@
 
       this.totalGamePages = 1;
       this.currentScreen  = 0;
+      this._scoreboardPageCount = 0;
+      this._standingsPageCount  = 0;
       this.rotateTimer    = null;
       this._headerStyleInjectedFor = null;
       this._rightPlacement = this._detectRightPlacement(false);
@@ -286,7 +289,19 @@
       } else {
         this.currentExtras = null;
       }
-      this.totalGamePages = Math.max(1, Math.ceil(this.games.length / this._gamesPerPage));
+
+      var scoreboardPages = (this.games.length > 0)
+        ? Math.ceil(this.games.length / this._gamesPerPage)
+        : 0;
+      var standingsPages = this._countStandingsPages(league);
+
+      this._scoreboardPageCount = scoreboardPages;
+      this._standingsPageCount  = standingsPages;
+
+      var totalPages = scoreboardPages + standingsPages;
+      if (totalPages === 0) totalPages = 1;
+
+      this.totalGamePages = totalPages;
       if (this.currentScreen >= this.totalGamePages) this.currentScreen = 0;
     },
 
@@ -869,7 +884,7 @@
         this._setModuleContentWidth(null);
         return this._noData("Loading games...");
       }
-      if (this.games.length === 0) {
+      if (this.games.length === 0 && !this._hasStandingsContent()) {
         this._setModuleContentWidth(null);
         return this._noData("No games to display.");
       }
@@ -892,62 +907,8 @@
       var container = document.createElement("div");
       container.className = "games-layout";
 
-      var start = this.currentScreen * this._gamesPerPage;
-      var games = this.games.slice(start, start + this._gamesPerPage);
-
-      var matrix = document.createElement("div");
-      matrix.className = "games-matrix";
-
       var activeLeague = this._getLeague();
-      if (activeLeague) {
-        matrix.classList.add("league-" + activeLeague);
-        container.classList.add("league-" + activeLeague);
-      }
-
-      matrix.style.setProperty("--games-matrix-columns", this._scoreboardColumns);
-
-      var totalSlots = this._scoreboardColumns * this._scoreboardRows;
-      var orderedGames = new Array(totalSlots);
-      var isRightPlacement = this._shouldUseRightPlacement();
-
-      var limit = games.length < totalSlots ? games.length : totalSlots;
-      for (var gi = 0; gi < limit; gi++) {
-        var columnIndex = Math.floor(gi / this._scoreboardRows);
-        if (isRightPlacement) columnIndex = (this._scoreboardColumns - 1) - columnIndex;
-        var rowIndex = gi % this._scoreboardRows;
-        var slotIndex = rowIndex * this._scoreboardColumns + columnIndex;
-        orderedGames[slotIndex] = games[gi];
-      }
-
-      for (var r = 0; r < this._scoreboardRows; r++) {
-        for (var c = 0; c < this._scoreboardColumns; c++) {
-          var index = r * this._scoreboardColumns + c;
-          var cell = document.createElement("div");
-          cell.className = "games-matrix-cell";
-
-          var game = orderedGames[index];
-          if (game) {
-            var card = this.createGameBox(game);
-            if (card) {
-              cell.appendChild(card);
-
-              for (var cl = 0; cl < card.classList.length; cl++) {
-                var cls = card.classList[cl];
-                if (cls && cls.indexOf("league-") === 0) {
-                  cell.classList.add(cls);
-                  break;
-                }
-              }
-            }
-          } else {
-            cell.classList.add("empty");
-          }
-
-          matrix.appendChild(cell);
-        }
-      }
-
-      container.appendChild(matrix);
+      if (activeLeague) container.classList.add("league-" + activeLeague);
 
       var estimatedWidth = this._estimateContentWidth();
       var widthPx = null;
@@ -971,7 +932,71 @@
 
       this._setModuleContentWidth(widthPx);
 
-      if (activeLeague === "nfl") {
+      var scoreboardPages = this._scoreboardPageCount || 0;
+      var standingsPages = this._standingsPageCount || 0;
+      var scoreboardRendered = false;
+
+      if (scoreboardPages > 0 && this.currentScreen < scoreboardPages) {
+        var start = this.currentScreen * this._gamesPerPage;
+        var games = this.games.slice(start, start + this._gamesPerPage);
+
+        var matrix = document.createElement("div");
+        matrix.className = "games-matrix";
+        matrix.style.setProperty("--games-matrix-columns", this._scoreboardColumns);
+        if (activeLeague) matrix.classList.add("league-" + activeLeague);
+
+        var totalSlots = this._scoreboardColumns * this._scoreboardRows;
+        var orderedGames = new Array(totalSlots);
+        var isRightPlacement = this._shouldUseRightPlacement();
+
+        var limit = games.length < totalSlots ? games.length : totalSlots;
+        for (var gi = 0; gi < limit; gi++) {
+          var columnIndex = Math.floor(gi / this._scoreboardRows);
+          if (isRightPlacement) columnIndex = (this._scoreboardColumns - 1) - columnIndex;
+          var rowIndex = gi % this._scoreboardRows;
+          var slotIndex = rowIndex * this._scoreboardColumns + columnIndex;
+          orderedGames[slotIndex] = games[gi];
+        }
+
+        for (var r = 0; r < this._scoreboardRows; r++) {
+          for (var c = 0; c < this._scoreboardColumns; c++) {
+            var index = r * this._scoreboardColumns + c;
+            var cell = document.createElement("div");
+            cell.className = "games-matrix-cell";
+
+            var game = orderedGames[index];
+            if (game) {
+              var card = this.createGameBox(game);
+              if (card) {
+                cell.appendChild(card);
+
+                for (var cl = 0; cl < card.classList.length; cl++) {
+                  var cls = card.classList[cl];
+                  if (cls && cls.indexOf("league-") === 0) {
+                    cell.classList.add(cls);
+                    break;
+                  }
+                }
+              }
+            } else {
+              cell.classList.add("empty");
+            }
+
+            matrix.appendChild(cell);
+          }
+        }
+
+        container.appendChild(matrix);
+        scoreboardRendered = true;
+      } else if (standingsPages > 0) {
+        var standingsIndex = this.currentScreen - scoreboardPages;
+        if (standingsIndex < 0) standingsIndex = 0;
+        if (standingsIndex >= standingsPages) standingsIndex = standingsPages - 1;
+        var standingsView = this._buildStandingsPage(standingsIndex);
+        if (standingsView) container.appendChild(standingsView);
+      }
+
+      if (scoreboardRendered && activeLeague === "nfl") {
         var extras = this.currentExtras;
         var byeTeams = extras && Array.isArray(extras.teamsOnBye) ? extras.teamsOnBye : [];
         var totalPages = Math.max(1, this.totalGamePages || 1);
@@ -983,6 +1008,286 @@
       }
 
       return container;
+    },
+
+    _buildStandingsPage: function (pageIndex) {
+      if (!this._isStandingsEnabledForLeague("nhl")) return null;
+
+      var data = this._extractStandingsData(this.currentExtras);
+      if (!data || !Array.isArray(data.pages) || data.pages.length === 0) return null;
+      if (pageIndex < 0 || pageIndex >= data.pages.length) return null;
+
+      var page = data.pages[pageIndex];
+      if (!page || !Array.isArray(page.divisions) || page.divisions.length === 0) return null;
+
+      var wrapper = document.createElement("div");
+      wrapper.className = "standings-page";
+      if (page.key) wrapper.setAttribute("data-page", page.key);
+
+      var titleText = page.title || "";
+      if (titleText) {
+        var title = document.createElement("div");
+        title.className = "standings-title";
+        title.textContent = titleText;
+        wrapper.appendChild(title);
+      }
+
+      var grid = document.createElement("div");
+      grid.className = "standings-grid";
+      wrapper.appendChild(grid);
+
+      for (var d = 0; d < page.divisions.length; d++) {
+        var division = page.divisions[d];
+        if (!division || !Array.isArray(division.teams) || division.teams.length === 0) continue;
+
+        var divisionEl = document.createElement("div");
+        divisionEl.className = "standings-division";
+        if (division.name) divisionEl.setAttribute("data-division", division.name);
+        grid.appendChild(divisionEl);
+
+        var nameEl = document.createElement("div");
+        nameEl.className = "standings-division-name";
+        nameEl.textContent = division.name || "";
+        divisionEl.appendChild(nameEl);
+
+        var table = document.createElement("div");
+        table.className = "standings-table";
+        table.style.setProperty("--standings-team-count", division.teams.length);
+        divisionEl.appendChild(table);
+
+        var headerRow = document.createElement("div");
+        headerRow.className = "standings-row standings-row-header";
+
+        var headers = [
+          { text: "TEAM", cls: "team" },
+          { text: "GP", cls: "gp" },
+          { text: "W", cls: "w" },
+          { text: "L", cls: "l" },
+          { text: "OT", cls: "ot" },
+          { text: "PTS", cls: "pts" }
+        ];
+
+        for (var h = 0; h < headers.length; h++) {
+          var header = document.createElement("div");
+          header.className = "standings-cell standings-cell-" + headers[h].cls;
+          header.textContent = headers[h].text;
+          headerRow.appendChild(header);
+        }
+
+        table.appendChild(headerRow);
+
+        for (var t = 0; t < division.teams.length; t++) {
+          var team = division.teams[t];
+          if (!team || !team.abbr) continue;
+
+          var row = document.createElement("div");
+          row.className = "standings-row standings-row-team";
+          row.setAttribute("data-team", team.abbr);
+          if (team.name) row.title = team.name;
+
+          var highlighted = this._isHighlighted(team.abbr);
+          if (highlighted) row.classList.add("highlighted");
+
+          var teamCell = document.createElement("div");
+          teamCell.className = "standings-cell standings-cell-team";
+
+          var teamWrap = document.createElement("div");
+          teamWrap.className = "standings-team";
+
+          var logo = document.createElement("img");
+          logo.className = "standings-team-logo";
+          logo.src = this.getLogoUrl(team.abbr);
+          logo.alt = team.abbr;
+          logo.onerror = (function (imgEl) { return function () { imgEl.style.display = "none"; }; })(logo);
+          teamWrap.appendChild(logo);
+
+          var abbrEl = document.createElement("span");
+          abbrEl.className = "standings-team-abbr";
+          abbrEl.textContent = team.abbr;
+          if (highlighted) abbrEl.classList.add("team-highlight");
+          teamWrap.appendChild(abbrEl);
+
+          teamCell.appendChild(teamWrap);
+          row.appendChild(teamCell);
+
+          var statMap = [
+            { key: "gamesPlayed", cls: "gp" },
+            { key: "wins", cls: "w" },
+            { key: "losses", cls: "l" },
+            { key: "ot", cls: "ot" },
+            { key: "points", cls: "pts" }
+          ];
+
+          for (var s = 0; s < statMap.length; s++) {
+            var map = statMap[s];
+            var value = (team && Object.prototype.hasOwnProperty.call(team, map.key)) ? team[map.key] : null;
+            var cell = document.createElement("div");
+            cell.className = "standings-cell standings-cell-" + map.cls;
+            cell.textContent = (value == null || value === "") ? "-" : value;
+            row.appendChild(cell);
+          }
+
+          table.appendChild(row);
+        }
+      }
+
+      var updatedText = this._formatStandingsUpdated(data.updated || page.updated);
+      if (updatedText) {
+        var updatedEl = document.createElement("div");
+        updatedEl.className = "standings-updated";
+        updatedEl.textContent = updatedText;
+        wrapper.appendChild(updatedEl);
+      }
+
+      return wrapper;
+    },
+
+    _countStandingsPages: function (league) {
+      if (!this._isStandingsEnabledForLeague(league)) return 0;
+      var data = this._extractStandingsData(this.currentExtras);
+      if (!data || !Array.isArray(data.pages)) return 0;
+      return data.pages.length;
+    },
+
+    _hasStandingsContent: function () {
+      if (!this._isStandingsEnabledForLeague(this._getLeague())) return false;
+      var data = this._extractStandingsData(this.currentExtras);
+      if (!data || !Array.isArray(data.pages)) return false;
+      for (var i = 0; i < data.pages.length; i++) {
+        var page = data.pages[i];
+        if (page && Array.isArray(page.divisions) && page.divisions.length > 0) return true;
+      }
+      return false;
+    },
+
+    _extractStandingsData: function (extras) {
+      if (!this._isStandingsEnabledForLeague("nhl")) return null;
+
+      var store = extras || this.currentExtras;
+      if (!store || typeof store !== "object") return null;
+      var standings = store.standings;
+      if (!standings || typeof standings !== "object") return null;
+
+      var rawPages = Array.isArray(standings.pages) ? standings.pages : [];
+      var pages = [];
+      var toNumber = (typeof this._toNumberOrNull === "function")
+        ? this._toNumberOrNull.bind(this)
+        : function (value) {
+            var num = Number(value);
+            return Number.isFinite(num) ? num : null;
+          };
+
+      for (var p = 0; p < rawPages.length; p++) {
+        var rawPage = rawPages[p] || {};
+        var rawDivisions = Array.isArray(rawPage.divisions) ? rawPage.divisions : [];
+        var divisions = [];
+
+        for (var d = 0; d < rawDivisions.length; d++) {
+          var rawDivision = rawDivisions[d] || {};
+          var rawTeams = Array.isArray(rawDivision.teams) ? rawDivision.teams : [];
+          var teams = [];
+
+          for (var t = 0; t < rawTeams.length; t++) {
+            var rawTeam = rawTeams[t] || {};
+            var abbr = rawTeam.abbr || rawTeam.abbreviation || rawTeam.teamAbbr || rawTeam.id;
+            if (!abbr) continue;
+            var upper = String(abbr).toUpperCase();
+
+            var gamesPlayed = toNumber(rawTeam.gamesPlayed);
+            var wins = toNumber(rawTeam.wins);
+            var losses = toNumber(rawTeam.losses);
+            var ot = toNumber(rawTeam.ot);
+            var points = toNumber(rawTeam.points);
+
+            teams.push({
+              abbr: upper,
+              name: rawTeam.name || rawTeam.fullName || rawTeam.teamName || upper,
+              gamesPlayed: gamesPlayed != null ? gamesPlayed : 0,
+              wins: wins != null ? wins : 0,
+              losses: losses != null ? losses : 0,
+              ot: ot != null ? ot : 0,
+              points: points != null ? points : 0
+            });
+          }
+
+          if (teams.length > 0) {
+            divisions.push({
+              name: rawDivision.name || rawDivision.title || "",
+              teams: teams
+            });
+          }
+        }
+
+        if (divisions.length > 0) {
+          pages.push({
+            key: rawPage.key || rawPage.id || rawPage.title || rawPage.conference || "",
+            title: rawPage.title || rawPage.name || rawPage.conference || "",
+            divisions: divisions,
+            updated: rawPage.updated || rawPage.lastUpdated || null
+          });
+        }
+      }
+
+      var updated = standings.updated || standings.lastUpdated || null;
+      if (!updated && pages.length > 0) {
+        for (var idx = 0; idx < pages.length; idx++) {
+          if (pages[idx] && pages[idx].updated) {
+            updated = pages[idx].updated;
+            break;
+          }
+        }
+      }
+
+      return { pages: pages, updated: updated };
+    },
+
+    _isStandingsEnabledForLeague: function (league) {
+      if (league !== "nhl") return false;
+
+      var cfg = this.config || {};
+      if (!cfg || typeof cfg !== "object") return true;
+
+      var value = cfg.showNhlStandings;
+      if (value == null) return true;
+
+      if (typeof value === "string") {
+        var normalized = value.trim().toLowerCase();
+        if (normalized === "false" || normalized === "0" || normalized === "no" || normalized === "off") return false;
+        if (normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on") return true;
+      }
+
+      return !!value;
+    },
+
+    _formatStandingsUpdated: function (value) {
+      if (!value) return null;
+
+      var formatted = null;
+      if (typeof moment === "function") {
+        try {
+          var m;
+          if (moment.tz && this.config && this.config.timeZone) {
+            m = moment.tz(value, this.config.timeZone);
+          } else {
+            m = moment(value);
+          }
+          if (m && typeof m.isValid === "function" && m.isValid()) {
+            formatted = m.format("MMM D, h:mm A");
+          }
+        } catch (e) {
+          formatted = null;
+        }
+      }
+
+      if (!formatted) {
+        var date = new Date(value);
+        if (!isNaN(date.getTime())) {
+          formatted = date.toLocaleString();
+        }
+      }
+
+      if (!formatted) return null;
+      return "Updated " + formatted;
     },
 
     _buildNflByeSection: function (byeTeams) {

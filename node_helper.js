@@ -80,6 +80,11 @@ module.exports = NodeHelper.create({
     const scoreboardDateIso = this._getNhlScoreboardDate();
     const targetDate = scoreboardDateIso || dateIso;
 
+    const includeStandings = this._shouldIncludeNhlStandings();
+    const extrasPromise = includeStandings
+      ? this._fetchNhlStandingsExtras()
+      : Promise.resolve(null);
+
     let delivered = false;
     let sent = false;
 
@@ -96,7 +101,8 @@ module.exports = NodeHelper.create({
         const games = Array.isArray(statsGames) ? statsGames : [];
         const count = games.length;
 
-        this._notifyGames("nhl", games);
+        const extras = await extrasPromise;
+        this._notifyGames("nhl", games, extras);
         sent = true;
 
         if (count > 0) {
@@ -119,7 +125,8 @@ module.exports = NodeHelper.create({
         const games = Array.isArray(scoreboardGames) ? scoreboardGames : [];
         const count = games.length;
 
-        this._notifyGames("nhl", games);
+        const extras = await extrasPromise;
+        this._notifyGames("nhl", games, extras);
         sent = true;
 
         if (count > 0) {
@@ -139,7 +146,8 @@ module.exports = NodeHelper.create({
         const restGames = await this._fetchNhlStatsRestGames(targetDate);
         if (restGames.length > 0) {
           console.log(`🏒 Sending ${restGames.length} NHL games to front-end (stats REST fallback).`);
-          this._notifyGames("nhl", restGames);
+          const extras = await extrasPromise;
+          this._notifyGames("nhl", restGames, extras);
           delivered = true;
           sent = true;
         } else {
@@ -152,7 +160,8 @@ module.exports = NodeHelper.create({
 
     if (!delivered && !sent) {
       console.warn(`⚠️ Unable to fetch NHL games for ${targetDate}; sending empty schedule to front-end.`);
-      this._notifyGames("nhl", []);
+      const extras = await extrasPromise;
+      this._notifyGames("nhl", [], extras);
     }
   },
 
@@ -440,6 +449,182 @@ module.exports = NodeHelper.create({
     });
 
     return hydrated;
+  },
+
+  _shouldIncludeNhlStandings() {
+    const cfg = this.config || {};
+    if (!cfg || typeof cfg !== "object") return true;
+
+    const value = cfg.showNhlStandings;
+    if (value == null) return true;
+
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === "false" || normalized === "0" || normalized === "no" || normalized === "off") return false;
+      if (normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on") return true;
+    }
+
+    return !!value;
+  },
+
+  async _fetchNhlStandingsExtras() {
+    try {
+      const standings = await this._fetchNhlStandings();
+      if (standings && Array.isArray(standings.pages) && standings.pages.length > 0) {
+        return { standings };
+      }
+    } catch (err) {
+      console.error("🚨 NHL standings fetch failed:", err);
+    }
+    return null;
+  },
+
+  async _fetchNhlStandings() {
+    const url = "https://statsapi.web.nhl.com/api/v1/standings/byDivision";
+    const res = await fetch(url, { headers: this._nhlRequestHeaders() });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    }
+
+    const json = await res.json();
+    const records = Array.isArray(json.records) ? json.records : [];
+
+    const divisions = {};
+
+    const addDivision = (key, division) => {
+      if (!key) return;
+      const normalizedKey = key.toLowerCase();
+      divisions[normalizedKey] = division;
+    };
+
+    const resolveAbbr = (teamInfo = {}) => {
+      const abbr = teamInfo.abbreviation || teamInfo.teamAbbrev || teamInfo.teamName || teamInfo.shortName || teamInfo.locationName;
+      return abbr ? String(abbr).toUpperCase() : null;
+    };
+
+    const resolveName = (teamInfo = {}) => {
+      if (teamInfo.name) return teamInfo.name;
+      const parts = [teamInfo.locationName, teamInfo.teamName].filter(Boolean);
+      if (parts.length > 0) return parts.join(" ");
+      if (teamInfo.shortName) return teamInfo.shortName;
+      if (teamInfo.abbreviation) return teamInfo.abbreviation;
+      return "";
+    };
+
+    for (let i = 0; i < records.length; i += 1) {
+      const record = records[i] || {};
+      const divisionInfo = record.division || {};
+      const conferenceInfo = record.conference || {};
+
+      const divisionName = divisionInfo.nameShort || divisionInfo.name || record.divisionName || "";
+      const conferenceName = conferenceInfo.name || conferenceInfo.nameShort || record.conferenceName || "";
+
+      const keyCandidates = [divisionName, divisionInfo.name, divisionInfo.nameShort, divisionInfo.abbreviation, divisionInfo.id];
+      const candidateKeys = keyCandidates
+        .filter((candidate) => candidate != null && String(candidate).trim() !== "")
+        .map((candidate) => String(candidate));
+      if (candidateKeys.length === 0) continue;
+
+      const teamRecords = Array.isArray(record.teamRecords) ? record.teamRecords : [];
+      const teams = [];
+
+      for (let j = 0; j < teamRecords.length; j += 1) {
+        const teamRecord = teamRecords[j] || {};
+        const teamInfo = teamRecord.team || {};
+        const leagueRecord = teamRecord.leagueRecord || {};
+
+        const abbr = resolveAbbr(teamInfo);
+        if (!abbr) continue;
+
+        const wins = Number.isFinite(leagueRecord.wins) ? leagueRecord.wins : Number(teamRecord.wins) || 0;
+        const losses = Number.isFinite(leagueRecord.losses) ? leagueRecord.losses : Number(teamRecord.losses) || 0;
+        const overtime = Number.isFinite(leagueRecord.ot) ? leagueRecord.ot : Number(teamRecord.ot) || Number(teamRecord.overtimeLosses) || 0;
+        const gamesPlayed = Number(teamRecord.gamesPlayed) || (wins + losses + overtime);
+        const points = Number(teamRecord.points) || 0;
+        const regulationWins = Number(teamRecord.regulationWins) || 0;
+        const pointsPct = Number(teamRecord.pointsPercentage) || 0;
+
+        teams.push({
+          id: teamInfo.id,
+          name: resolveName(teamInfo),
+          abbr,
+          gamesPlayed,
+          wins,
+          losses,
+          ot: overtime,
+          points,
+          regulationWins,
+          pointsPercentage: pointsPct
+        });
+      }
+
+      teams.sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.regulationWins !== a.regulationWins) return b.regulationWins - a.regulationWins;
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        if (b.pointsPercentage !== a.pointsPercentage) return b.pointsPercentage - a.pointsPercentage;
+        return a.name.localeCompare(b.name);
+      });
+
+      const divisionData = {
+        name: divisionName || candidateKeys[0],
+        conference: conferenceName || null,
+        teams
+      };
+
+      candidateKeys.forEach((key) => addDivision(key, divisionData));
+    }
+
+    const buildDivisions = (names) => {
+      const result = [];
+      names.forEach((name) => {
+        if (!name) return;
+        const key = String(name).toLowerCase();
+        const division = divisions[key];
+        if (division && Array.isArray(division.teams) && division.teams.length > 0) {
+          result.push({
+            name: division.name,
+            teams: division.teams.map((team) => ({
+              abbr: team.abbr,
+              name: team.name,
+              gamesPlayed: team.gamesPlayed,
+              wins: team.wins,
+              losses: team.losses,
+              ot: team.ot,
+              points: team.points
+            }))
+          });
+        }
+      });
+      return result;
+    };
+
+    const pages = [];
+    const western = buildDivisions(["Central", "Pacific"]);
+    if (western.length > 0) {
+      pages.push({ key: "western", title: "Western Conference", divisions: western });
+    }
+
+    const eastern = buildDivisions(["Metropolitan", "Atlantic"]);
+    if (eastern.length > 0) {
+      pages.push({ key: "eastern", title: "Eastern Conference", divisions: eastern });
+    }
+
+    let updated = null;
+    for (let i = 0; i < records.length; i += 1) {
+      const record = records[i];
+      if (record && record.lastUpdated) {
+        updated = record.lastUpdated;
+        break;
+      }
+    }
+    if (!updated && json && json.records && json.records[0] && json.records[0].teamRecords && json.records[0].teamRecords[0]) {
+      const firstRecord = json.records[0].teamRecords[0];
+      if (firstRecord && firstRecord.lastUpdated) updated = firstRecord.lastUpdated;
+    }
+    if (!updated && json && json.lastUpdated) updated = json.lastUpdated;
+
+    return { pages, updated };
   },
 
   _hydrateNhlGame(game) {
