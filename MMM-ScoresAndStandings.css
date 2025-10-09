@@ -246,9 +246,11 @@
   display: flex;
   align-items: center;
   gap: calc(var(--scoreboard-gap) * 0.75);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   row-gap: calc(var(--scoreboard-gap) * 0.25);
   min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .scoreboard-card .scoreboard-team-total-label {
