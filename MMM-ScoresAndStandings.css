@@ -242,10 +242,21 @@
 .scoreboard-card .scoreboard-status {
   font-size: var(--scoreboard-status-font);
   letter-spacing: 0.08em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--scoreboard-gap) * 0.75);
+  flex-wrap: wrap;
+  row-gap: calc(var(--scoreboard-gap) * 0.25);
+  min-width: 0;
+}
+
+.scoreboard-card .scoreboard-team-total-label {
+  flex: 0 0 auto;
+  margin-left: auto;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: calc(var(--scoreboard-label-font) * 0.9);
 }
 
 .scoreboard-card .scoreboard-status.live {
