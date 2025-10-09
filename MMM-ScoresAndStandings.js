@@ -20,7 +20,7 @@
   // Scoreboard layout defaults (can be overridden via config)
   var DEFAULT_SCOREBOARD_COLUMNS        = 2;
   var DEFAULT_SCOREBOARD_COLUMNS_PRO    = 4;
-  var DEFAULT_GAMES_PER_COLUMN          = 2;
+  var DEFAULT_GAMES_PER_COLUMN          = 4;
   var DEFAULT_GAMES_PER_COLUMN_PRO      = 4;
 
   var SCOREBOARD_CARD_WIDTH_BASE        = 320;
@@ -35,6 +35,7 @@
 
   var SUPPORTED_LEAGUES = ["mlb", "nhl", "nfl", "nba"];
   var MLB_MAX_GAMES_PER_PAGE = 8;
+  var MLB_MAX_COLUMNS        = 2;
 
   Module.register("MMM-ScoresAndStandings", {
     defaults: {
@@ -350,6 +351,12 @@
       return null;
     },
 
+    _maximumColumnsForLeague: function (league) {
+      if (!league) league = this._getLeague();
+      if (league === "mlb") return MLB_MAX_COLUMNS;
+      return null;
+    },
+
     _syncScoreboardLayout: function () {
       var league        = this._getLeague();
       var defaultCols   = this._defaultColumnsForLeague();
@@ -368,6 +375,15 @@
       if (minimums) {
         if (columns < minimums.columns) columns = minimums.columns;
         if (perColumn < minimums.rows) perColumn = minimums.rows;
+      }
+
+      var minColumns = minimums ? minimums.columns : 1;
+      var minRows = minimums ? minimums.rows : 1;
+
+      var maxColumns = this._maximumColumnsForLeague(league);
+      if (typeof maxColumns === "number" && isFinite(maxColumns) && maxColumns > 0) {
+        if (minColumns > maxColumns) minColumns = maxColumns;
+        if (columns > maxColumns) columns = Math.max(minColumns, Math.min(columns, maxColumns));
       }
 
       var gamesPerPage = columns * perColumn;
@@ -391,9 +407,6 @@
 
       var maxGames = this._maximumGamesPerPageForLeague(league);
       if (typeof maxGames === "number" && isFinite(maxGames) && maxGames > 0) {
-        var minColumns = minimums ? minimums.columns : 1;
-        var minRows = minimums ? minimums.rows : 1;
-
         if (columns > maxGames) columns = Math.max(minColumns, Math.min(columns, maxGames));
         if (perColumn > maxGames) perColumn = Math.max(minRows, Math.min(perColumn, maxGames));
 
