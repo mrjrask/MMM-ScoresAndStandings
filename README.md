@@ -1,6 +1,6 @@
 # MMM-ScoresAndStandings
 
-A polished multi-league scoreboard for [MagicMirror²](https://magicmirror.builders) with configurable layouts, team highlighting, and built-in assets support. Scoreboards for MLB, NHL, NFL, and NBA rotate automatically so you never miss a final. **Standings coming soon.**
+A polished multi-league scoreboard for [MagicMirror²](https://magicmirror.builders) with configurable layouts, team highlighting, and built-in assets support. Scoreboards for MLB, NHL, NFL, and NBA rotate automatically so you never miss a final, and NHL divisional standings keep conference races front and center.
 
 ---
 
@@ -28,7 +28,7 @@ A polished multi-league scoreboard for [MagicMirror²](https://magicmirror.build
 - **MagicMirror-friendly width cap** – keep the module tidy in `middle_center` or other regions.
 - **Zero external dependencies in the helper** – uses the global `fetch` provided by Node.js 18+.
 - **Times Square scoreboard font** option for the body while preserving the default MagicMirror header font.
-- **Standings coming soon.**
+- **NHL divisional standings** – two-page view for Western (Central & Pacific) and Eastern (Metropolitan & Atlantic) conferences with logos, records, and points.
 
 ---
 
@@ -91,6 +91,7 @@ Every option can be declared globally, as an object keyed by league (`{ mlb: val
 | `gamesPerPage` | `number` | derived | Override the total games per page; rows will adjust automatically per league. |
 | `layoutScale` | `number` | `1` | Uniformly scales the scoreboard (clamped between 0.6 and 1.4). |
 | `highlightedTeams_mlb` | `string \| string[]` | `[]` | Team abbreviations to highlight for MLB. Also available as `_nhl`, `_nfl`, `_nba`. |
+| `showNhlStandings` | `boolean \| string` | `true` | Displays NHL divisional standings pages when viewing NHL games. Set to `false` (or "off") to hide them. |
 | `showTitle` | `boolean` | `true` | Toggles the module header (`MLB Scoreboard`, etc.). |
 | `useTimesSquareFont` | `boolean` | `true` | Applies the Times Square font to scoreboard cards. |
 | `maxWidth` | `string \| number` | `"800px"` | Caps the module width and header alignment. Numbers are treated as pixels. |
@@ -176,7 +177,7 @@ The helper refreshes every `updateIntervalScores` milliseconds (default 60 secon
 
 ## Roadmap
 
-- Standings coming soon.
+- Expand standings views with streaks, last-ten form, and wildcard perspectives.
 - Additional layout presets and playoff indicators are under consideration.
 
 ---
