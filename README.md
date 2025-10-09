@@ -86,8 +86,8 @@ Every option can be declared globally, as an object keyed by league (`{ mlb: val
 | `updateIntervalScores` | `number` | `60000` | Milliseconds between helper fetches. Minimum enforced interval is 10 seconds. |
 | `rotateIntervalScores` | `number` | `15000` | Milliseconds between page/league rotations on the front-end. |
 | `timeZone` | `string` | `"America/Chicago"` | Time zone used to decide which day’s schedule to request (fetches the previous day before 09:30 local). |
-| `scoreboardColumns` | `number` | auto | Columns per page. Defaults to 2 for MLB and 4 for NHL/NFL/NBA. |
-| `gamesPerColumn` (`scoreboardRows`) | `number` | auto | Games stacked in each column (2 for MLB, 4 for NHL/NFL/NBA). |
+| `scoreboardColumns` | `number` | auto | Columns per page. Defaults to 2 for MLB (capped at 2) and 4 for NHL/NFL/NBA. |
+| `gamesPerColumn` (`scoreboardRows`) | `number` | auto | Games stacked in each column (4 for MLB/NHL/NFL/NBA). |
 | `gamesPerPage` | `number` | derived | Override the total games per page; rows will adjust automatically per league. |
 | `layoutScale` | `number` | `1` | Uniformly scales the scoreboard (clamped between 0.6 and 1.4). |
 | `highlightedTeams_mlb` | `string \| string[]` | `[]` | Team abbreviations to highlight for MLB. Also available as `_nhl`, `_nfl`, `_nba`. |
@@ -101,7 +101,7 @@ You can tailor layouts per league using suffixes:
 
 ```js
 config: {
-  scoreboardColumns_mlb: 3,
+  scoreboardColumns_nhl: 3,
   gamesPerColumn_nhl: 5,
   gamesPerPage_nfl: 8
 }
