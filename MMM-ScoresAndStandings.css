@@ -71,8 +71,8 @@
 .MMM-ScoresAndStandings .module-header + hr {
   border: none;
   border-bottom: 1px solid #999;
-  width: 100%;
-  max-width: var(--scoreboard-content-width, var(--scoreboard-card-width));
+  width: 50%;
+  max-width: calc(var(--scoreboard-content-width, var(--scoreboard-card-width)) * 0.5);
   margin: 4px auto 8px;
 }
 
