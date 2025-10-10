@@ -105,6 +105,8 @@
       this._rightPlacement = this._detectRightPlacement(false);
       this._placementCheckTimer = null;
       this._lastRenderedDom = null;
+      this._activeWidthSyncTimer = null;
+      this._activeWidthSyncAttempts = 0;
 
       this._applyActiveLeagueState();
 
@@ -131,6 +133,15 @@
       var s = String(v).trim();
       if (/^\d+$/.test(s)) return s + "px";
       return s;
+    },
+
+    _formatPixelValue: function (value) {
+      if (typeof value !== "number" || !isFinite(value) || value <= 0) return null;
+      var str = value.toFixed(2);
+      if (str.indexOf(".") !== -1) {
+        str = str.replace(/\.00$/, "").replace(/(\.[0-9])0$/, "$1");
+      }
+      return str + "px";
     },
 
     _getLeague: function () {
@@ -911,6 +922,7 @@
         return this._noData("Error building view.");
       }
       this._lastRenderedDom = wrapper;
+      this._scheduleActiveWidthSync();
       return wrapper;
     },
 
@@ -927,11 +939,7 @@
       var estimatedWidth = this._estimateContentWidth();
       var widthPx = null;
       if (typeof estimatedWidth === "number" && isFinite(estimatedWidth) && estimatedWidth > 0) {
-        var widthStr = estimatedWidth.toFixed(2);
-        if (widthStr.indexOf(".") !== -1) {
-          widthStr = widthStr.replace(/\.00$/, "").replace(/(\.[0-9])0$/, "$1");
-        }
-        widthPx = widthStr + "px";
+        widthPx = this._formatPixelValue(estimatedWidth);
       }
 
       container.style.width = "100%";
@@ -1022,6 +1030,67 @@
       }
 
       return container;
+    },
+
+    _queueActiveWidthSync: function (delay) {
+      if (delay == null || !isFinite(delay) || delay < 0) delay = 16;
+      if (this._activeWidthSyncTimer != null) clearTimeout(this._activeWidthSyncTimer);
+      var self = this;
+      this._activeWidthSyncTimer = setTimeout(function () {
+        self._activeWidthSyncTimer = null;
+        self._syncActiveContentWidth();
+      }, delay);
+    },
+
+    _scheduleActiveWidthSync: function () {
+      this._activeWidthSyncAttempts = 0;
+      this._queueActiveWidthSync(20);
+    },
+
+    _syncActiveContentWidth: function () {
+      var wrapper = this._lastRenderedDom;
+      if (!wrapper || !wrapper.isConnected) {
+        this._activeWidthSyncAttempts = (this._activeWidthSyncAttempts || 0) + 1;
+        if (this._activeWidthSyncAttempts < 5) this._queueActiveWidthSync(60);
+        return;
+      }
+
+      var measured = this._measureActiveContentWidth(wrapper);
+      if (typeof measured !== "number" || !isFinite(measured) || measured <= 0) return;
+
+      var widthPx = this._formatPixelValue(measured);
+      if (!widthPx) return;
+
+      var layout = wrapper.querySelector(".games-layout");
+      if (layout) {
+        layout.style.maxWidth = widthPx;
+        layout.style.setProperty("--scoreboard-content-width", widthPx);
+      }
+
+      this._setModuleContentWidth(widthPx);
+    },
+
+    _measureActiveContentWidth: function (wrapper) {
+      if (!wrapper) return null;
+      var selectors = [
+        ".games-layout .games-matrix",
+        ".games-layout .standings-grid",
+        ".games-layout",
+        ".standings-page .standings-grid",
+        ".standings-page"
+      ];
+
+      for (var i = 0; i < selectors.length; i++) {
+        var el = wrapper.querySelector(selectors[i]);
+        if (el && el.getBoundingClientRect) {
+          var rect = el.getBoundingClientRect();
+          if (rect && typeof rect.width === "number" && rect.width > 0) {
+            return rect.width;
+          }
+        }
+      }
+
+      return null;
     },
 
     _buildStandingsPage: function (pageIndex) {
