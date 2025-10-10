@@ -400,11 +400,17 @@
   overflow: hidden;
 }
 
+.scoreboard-card.league-nhl .scoreboard-header {
+  position: relative;
+}
+
 .scoreboard-card.league-nhl .scoreboard-status {
-  flex-wrap: wrap;
-  white-space: normal;
+  position: relative;
+  z-index: 1;
+  flex-wrap: nowrap;
+  white-space: nowrap;
   overflow: visible;
-  row-gap: calc(var(--scoreboard-gap) * 0.1);
+  padding-right: calc(var(--scoreboard-gap) * 0.5);
 }
 
 .scoreboard-card .scoreboard-team-total-label {
