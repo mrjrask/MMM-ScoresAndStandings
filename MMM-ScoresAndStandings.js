@@ -709,11 +709,25 @@
       return null;
     },
 
+    _formatNhlClockString: function (clock) {
+      if (typeof clock !== "string") return "";
+
+      var trimmed = clock.trim();
+      if (!trimmed) return "";
+
+      if (/^0\d:\d{2}$/.test(trimmed)) {
+        trimmed = trimmed.replace(/^0(\d:\d{2})$/, "$1");
+      }
+
+      return trimmed;
+    },
+
     _formatNhlTimeRemaining: function (remaining) {
       if (remaining == null) return "";
 
       if (typeof remaining === "string") {
-        return remaining;
+        var normalized = this._formatNhlClockString(remaining);
+        return normalized || remaining.trim();
       }
 
       if (typeof remaining === "number") {
@@ -769,8 +783,8 @@
           if (!Object.prototype.hasOwnProperty.call(remaining, prop)) continue;
           var val = remaining[prop];
           if (typeof val === "string") {
-            var trimmed = val.trim();
-            if (trimmed) return trimmed;
+            var clock = this._formatNhlClockString(val);
+            if (clock) return clock;
           }
         }
       }
@@ -1767,7 +1781,7 @@
         live: isLive,
         showValues: showVals,
         statusText: statusText,
-        metricLabels: ["G"],
+        metricLabels: [""],
         metricValueClasses: ["shots-on-goal-value"],
         rows: rows,
         cardClasses: cardClasses
