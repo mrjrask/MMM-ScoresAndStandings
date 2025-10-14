@@ -1881,10 +1881,18 @@
         var period = competition.status && competition.status.period;
         var ord = this._ordinal(period);
         var clock = competition.status && (competition.status.displayClock || competition.status.clock);
-        var parts = [];
-        if (ord) parts.push(ord);
-        if (clock) parts.push(clock);
-        statusText = parts.join(" ") || detailed || "Live";
+        var specialStatus = this._resolveNflSpecialLiveStatus({
+          detailed: detailed,
+          clock: clock
+        });
+        if (specialStatus) {
+          statusText = specialStatus;
+        } else {
+          var parts = [];
+          if (ord) parts.push(ord);
+          if (clock) parts.push(clock);
+          statusText = parts.join(" ") || detailed || "Live";
+        }
       } else {
         statusText = detailed || "";
       }
@@ -2155,6 +2163,29 @@
       } catch (e) {
         return timeText;
       }
+    },
+
+    _resolveNflSpecialLiveStatus: function (details) {
+      details = details || {};
+      var clock = this._normalizeStatusString(details.clock);
+      var detailed = this._normalizeStatusString(details.detailed);
+
+      if (!clock && !detailed) return null;
+
+      if (clock.indexOf("halftime") !== -1 || detailed.indexOf("halftime") !== -1) {
+        return "Halftime";
+      }
+
+      if (clock.indexOf("end of 1st") !== -1 || detailed.indexOf("end of 1st") !== -1) {
+        return "End of 1st";
+      }
+
+      return null;
+    },
+
+    _normalizeStatusString: function (value) {
+      if (value == null) return "";
+      return String(value).trim().toLowerCase();
     },
 
     _ordinal: function (period) {
