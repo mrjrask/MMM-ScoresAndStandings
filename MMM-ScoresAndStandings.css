@@ -64,7 +64,7 @@
 --------------------------------------------------*/
 .module-header {
   font-family: inherit;
-  font-size: 1.2em;
+  font-size: calc(1.2em + 1pt);
   font-weight: bold;
   margin: 0;
 }
@@ -132,7 +132,7 @@
 }
 
 .bye-week-title {
-  font-size: var(--scoreboard-label-font);
+  font-size: calc(var(--scoreboard-label-font) + 1pt);
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--scoreboard-muted);
@@ -159,7 +159,7 @@
 }
 
 .bye-week-team-logo {
-  height: calc(var(--scoreboard-team-font) * 0.85);
+  height: calc(var(--scoreboard-team-font) * 0.952);
   width: auto;
   display: block;
 }
@@ -172,14 +172,14 @@
 }
 
 .bye-week-team-abbr {
-  font-size: calc(var(--scoreboard-team-font) * 0.9);
+  font-size: calc(var(--scoreboard-team-font) * 0.9 + 1pt);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   font-weight: 700;
 }
 
 .bye-week-team-name {
-  font-size: calc(var(--scoreboard-label-font) * 1.05);
+  font-size: calc(var(--scoreboard-label-font) * 1.05 + 1pt);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--scoreboard-muted);
@@ -206,7 +206,7 @@
 }
 
 .standings-title {
-  font-size: calc(var(--scoreboard-status-font) * 0.95);
+  font-size: calc(var(--scoreboard-status-font) * 0.95 + 1pt);
   letter-spacing: 0.24em;
   text-transform: uppercase;
   font-weight: 600;
@@ -235,7 +235,7 @@
 }
 
 .standings-division-name {
-  font-size: calc(var(--scoreboard-label-font) * 1.1);
+  font-size: calc(var(--scoreboard-label-font) * 1.1 + 1pt);
   letter-spacing: 0.26em;
   text-transform: uppercase;
   font-weight: 600;
@@ -261,14 +261,14 @@
 
 .standings-row-header {
   color: var(--scoreboard-muted);
-  font-size: calc(var(--scoreboard-label-font) * 0.95);
+  font-size: calc(var(--scoreboard-label-font) * 0.95 + 1pt);
   letter-spacing: 0.2em;
   text-transform: uppercase;
   font-weight: 600;
 }
 
 .standings-row-team {
-  font-size: calc(var(--scoreboard-label-font) * 1.05);
+  font-size: calc(var(--scoreboard-label-font) * 1.05 + 1pt);
   color: var(--scoreboard-text);
 }
 
@@ -301,13 +301,13 @@
 }
 
 .standings-team-logo {
-  height: calc(var(--scoreboard-team-font) * 0.65);
+  height: calc(var(--scoreboard-team-font) * 0.728);
   width: auto;
   display: block;
 }
 
 .standings-team-abbr {
-  font-size: calc(var(--scoreboard-team-font) * 0.85);
+  font-size: calc(var(--scoreboard-team-font) * 0.85 + 1pt);
   letter-spacing: 0.26em;
   font-weight: 600;
 }
@@ -318,7 +318,7 @@
 .standings-cell-ot,
 .standings-cell-pts {
   text-align: right;
-  font-size: calc(var(--scoreboard-label-font) * 1.05);
+  font-size: calc(var(--scoreboard-label-font) * 1.05 + 1pt);
 }
 
 .standings-cell-pts {
@@ -326,7 +326,7 @@
 }
 
 .standings-updated {
-  font-size: calc(var(--scoreboard-label-font) * 0.85);
+  font-size: calc(var(--scoreboard-label-font) * 0.85 + 1pt);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--scoreboard-muted);
@@ -379,7 +379,7 @@
 }
 
 .scoreboard-card .scoreboard-status {
-  font-size: var(--scoreboard-status-font);
+  font-size: calc(var(--scoreboard-status-font) + 1pt);
   letter-spacing: 0.08em;
   font-weight: 600;
   display: flex;
@@ -410,7 +410,7 @@
   margin-left: auto;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  font-size: calc(var(--scoreboard-label-font) * 0.9);
+  font-size: calc(var(--scoreboard-label-font) * 0.9 + 1pt);
 }
 
 .scoreboard-card .scoreboard-status.live {
@@ -418,7 +418,7 @@
 }
 
 .scoreboard-card .scoreboard-label {
-  font-size: var(--scoreboard-label-font);
+  font-size: calc(var(--scoreboard-label-font) + 1pt);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   text-align: center;
@@ -452,7 +452,7 @@
 }
 
 .scoreboard-card .scoreboard-team-total {
-  font-size: var(--scoreboard-value-font);
+  font-size: calc(var(--scoreboard-value-font) + 1pt);
   font-weight: 700;
   color: var(--scoreboard-value-color);
   margin-left: auto;
@@ -468,8 +468,8 @@
 }
 
 .scoreboard-card .scoreboard-team-logo {
-  height: calc(var(--scoreboard-team-font) * 0.88);
-  max-height: calc(var(--scoreboard-team-font) * 0.99);
+  height: calc(var(--scoreboard-team-font) * 0.9856);
+  max-height: calc(var(--scoreboard-team-font) * 1.1088);
   width: auto;
   display: block;
 }
@@ -484,7 +484,7 @@
 }
 
 .scoreboard-card .scoreboard-team-abbr {
-  font-size: var(--scoreboard-team-font);
+  font-size: calc(var(--scoreboard-team-font) + 1pt);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   line-height: 1;
@@ -492,7 +492,7 @@
 }
 
 .scoreboard-card .scoreboard-value {
-  font-size: var(--scoreboard-value-font);
+  font-size: calc(var(--scoreboard-value-font) + 1pt);
   text-align: center;
   font-variant-numeric: tabular-nums;
   color: var(--scoreboard-text);
@@ -505,7 +505,7 @@
 }
 
 .scoreboard-value-superscript {
-  font-size: 0.55em;
+  font-size: calc(0.55em + 1pt);
   margin-left: 0.25em;
   vertical-align: super;
   font-weight: 600;
