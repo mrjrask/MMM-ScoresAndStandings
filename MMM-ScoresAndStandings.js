@@ -17,6 +17,10 @@
     "Athletics": "ATH","Seattle Mariners": "SEA","Texas Rangers": "TEX"
   };
 
+  var NBA_ABBREVIATION_OVERRIDES = {
+    "Utah Jazz": "UTA"
+  };
+
   // Scoreboard layout defaults (can be overridden via config)
   var DEFAULT_SCOREBOARD_COLUMNS        = 2;
   var DEFAULT_SCOREBOARD_COLUMNS_PRO    = 4;
@@ -2212,7 +2216,7 @@
       } else if (league === "nfl") {
         abbr = team.abbreviation || team.teamAbbreviation || team.shortDisplayName || team.nickname || name;
       } else if (league === "nba") {
-        abbr = team.abbreviation || team.teamAbbreviation || team.shortDisplayName || team.nickname || name;
+        abbr = NBA_ABBREVIATION_OVERRIDES[name] || team.abbreviation || team.teamAbbreviation || team.shortDisplayName || team.nickname || name;
       }
 
       if (!abbr && typeof team.abbreviation === "string") abbr = team.abbreviation;
