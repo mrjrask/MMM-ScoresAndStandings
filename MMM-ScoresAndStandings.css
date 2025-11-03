@@ -493,7 +493,7 @@
 
 .scoreboard-card .scoreboard-possession-icon {
   margin: 0 0.2em;
-  font-size: calc((var(--scoreboard-team-font) + 1pt) * 0.5);
+  font-size: calc((var(--scoreboard-team-font) + 1pt) * 0.3);
   line-height: 1;
   display: inline-block;
   vertical-align: middle;
