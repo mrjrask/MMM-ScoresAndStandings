@@ -1546,6 +1546,13 @@
         abbrEl.textContent = abbr;
         team.appendChild(abbrEl);
 
+        if (rowData.possessionIcon) {
+          var possessionEl = document.createElement("span");
+          possessionEl.className = "scoreboard-possession-icon";
+          possessionEl.textContent = rowData.possessionIcon;
+          team.appendChild(possessionEl);
+        }
+
         if (rowData.highlight) team.classList.add("team-highlight");
 
         if (Object.prototype.hasOwnProperty.call(rowData, "total") || Object.prototype.hasOwnProperty.call(rowData, "totalPlaceholder")) {
@@ -1920,6 +1927,132 @@
       if (!away && competitors.length > 0) away = competitors[0];
       if (!home && competitors.length > 1) home = competitors[1];
 
+      var collectTokens = function (value) {
+        var tokens = [];
+        var visited = [];
+
+        var visit = function (input) {
+          if (input == null) return;
+          var type = typeof input;
+          if (type === "string" || type === "number" || type === "boolean") {
+            var str = String(input).trim();
+            if (!str) return;
+            var lower = str.toLowerCase();
+            tokens.push(lower);
+            var matches = str.match(/\b[A-Z]{2,4}\b/g);
+            if (matches) {
+              for (var m = 0; m < matches.length; m++) {
+                var matchLower = matches[m].toLowerCase();
+                tokens.push(matchLower);
+              }
+            }
+            return;
+          }
+          if (Array.isArray(input)) {
+            for (var ai = 0; ai < input.length; ai++) {
+              visit(input[ai]);
+            }
+            return;
+          }
+          if (type === "object") {
+            if (visited.indexOf(input) !== -1) return;
+            visited.push(input);
+            var keys = [
+              "id",
+              "uid",
+              "abbreviation",
+              "abbrev",
+              "displayName",
+              "shortDisplayName",
+              "name",
+              "location",
+              "teamAbbreviation",
+              "teamId",
+              "slug",
+              "alternateId"
+            ];
+            for (var ki = 0; ki < keys.length; ki++) {
+              if (Object.prototype.hasOwnProperty.call(input, keys[ki])) {
+                visit(input[keys[ki]]);
+              }
+            }
+            if (Object.prototype.hasOwnProperty.call(input, "team")) {
+              visit(input.team);
+            }
+          }
+        };
+
+        visit(value);
+
+        var deduped = [];
+        var seen = Object.create(null);
+        for (var ti = 0; ti < tokens.length; ti++) {
+          var token = tokens[ti];
+          if (!token) continue;
+          if (!Object.prototype.hasOwnProperty.call(seen, token)) {
+            seen[token] = true;
+            deduped.push(token);
+          }
+        }
+        return deduped;
+      };
+
+      var possessionLookup = null;
+      var markPossessionTokens = function (value) {
+        var tokens = collectTokens(value);
+        if (!tokens || tokens.length === 0) return;
+        if (!possessionLookup) possessionLookup = Object.create(null);
+        for (var pi = 0; pi < tokens.length; pi++) {
+          possessionLookup[tokens[pi]] = true;
+        }
+      };
+
+      if (isLive) {
+        var situation = competition.situation || {};
+        markPossessionTokens(situation.possession);
+        markPossessionTokens(situation.possessionId);
+        markPossessionTokens(situation.team);
+        if (situation.lastPlay && situation.lastPlay.team) {
+          markPossessionTokens(situation.lastPlay.team);
+        }
+        markPossessionTokens(situation.possessionText);
+      } else if (isFinal) {
+        var winnerEntry = null;
+        if (away && away.winner) winnerEntry = away;
+        else if (home && home.winner) winnerEntry = home;
+        else if (Array.isArray(competitors)) {
+          for (var wi = 0; wi < competitors.length; wi++) {
+            var compEntry = competitors[wi];
+            if (compEntry && compEntry.winner) {
+              winnerEntry = compEntry;
+              break;
+            }
+          }
+        }
+
+        if (!winnerEntry) {
+          var awayFinal = this._firstNumber(
+            away && away.score,
+            away && away.points,
+            away && away.team && away.team.score
+          );
+          var homeFinal = this._firstNumber(
+            home && home.score,
+            home && home.points,
+            home && home.team && home.team.score
+          );
+          if (awayFinal != null && homeFinal != null) {
+            if (awayFinal > homeFinal) winnerEntry = away;
+            else if (homeFinal > awayFinal) winnerEntry = home;
+          }
+        }
+
+        if (winnerEntry) {
+          markPossessionTokens(winnerEntry);
+          if (winnerEntry.team) markPossessionTokens(winnerEntry.team);
+        }
+      }
+
       var rows = [];
       var pair = [away, home];
       for (var idx = 0; idx < pair.length; idx++) {
@@ -1975,6 +2108,19 @@
           isLoser = scoreNum < otherScore;
         }
 
+        var hasPossession = false;
+        if (possessionLookup) {
+          var entryTokens = collectTokens(entry);
+          var teamTokens = collectTokens(team);
+          var combined = entryTokens.concat(teamTokens);
+          for (var ct = 0; ct < combined.length; ct++) {
+            if (possessionLookup[combined[ct]]) {
+              hasPossession = true;
+              break;
+            }
+          }
+        }
+
         rows.push({
           type: (idx === 0) ? "away" : "home",
           abbr: abbr,
@@ -1983,7 +2129,8 @@
           isLoser: isLoser,
           metrics: [],
           total: totalScore,
-          totalPlaceholder: isPreview ? "" : "—"
+          totalPlaceholder: isPreview ? "" : "—",
+          possessionIcon: hasPossession ? "🏈" : null
         });
       }
 
