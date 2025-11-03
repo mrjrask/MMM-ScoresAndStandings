@@ -491,6 +491,14 @@
   font-weight: 600;
 }
 
+.scoreboard-card .scoreboard-possession-icon {
+  margin: 0 0.2em;
+  font-size: calc(var(--scoreboard-team-font) + 1pt);
+  line-height: 1;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 .scoreboard-card .scoreboard-value {
   font-size: calc(var(--scoreboard-value-font) + 1pt);
   text-align: center;
