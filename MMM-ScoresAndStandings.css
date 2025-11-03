@@ -454,17 +454,17 @@
 .scoreboard-card .scoreboard-team-total {
   font-size: calc(var(--scoreboard-value-font) + 1pt);
   font-weight: 700;
-  color: var(--scoreboard-value-color);
+  color: var(--scoreboard-text);
   margin-left: auto;
   line-height: 1;
 }
 
-.scoreboard-card.league-nfl .scoreboard-team-total {
-  color: var(--scoreboard-text);
+.scoreboard-card .scoreboard-team-total.live {
+  color: var(--scoreboard-value-color);
 }
 
-.scoreboard-card.league-nfl .scoreboard-team-total.live {
-  color: var(--scoreboard-value-color);
+.scoreboard-card.is-preview .scoreboard-team-total {
+  color: var(--scoreboard-muted);
 }
 
 .scoreboard-card .scoreboard-team-logo {
@@ -585,6 +585,10 @@
 }
 
 .scoreboard-card .scoreboard-row.loser .scoreboard-value {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.scoreboard-card .scoreboard-row.loser .scoreboard-team-total {
   color: rgba(255, 255, 255, 0.55);
 }
 
