@@ -335,7 +335,12 @@
       var styleId = this.identifier + "-width-style";
       var el = document.getElementById(styleId);
       var css =
-        "#" + this.identifier + " .module-header{max-width:" + cap + ";margin:0 auto;display:block;width:min(100%,var(--scoreboard-content-width," + cap + "));}";
+        "#" + this.identifier + " .module-header{" +
+        "max-width:var(--scoreboard-content-width," + cap + ");" +
+        "width:100%;" +
+        "margin:0 auto;" +
+        "display:block;" +
+        "}";
 
       if (!el) {
         el = document.createElement("style");
