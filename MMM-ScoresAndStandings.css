@@ -438,11 +438,10 @@
 
 .scoreboard-card .scoreboard-row {
   padding: var(--scoreboard-pad-block) var(--scoreboard-pad-inline);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.scoreboard-card .scoreboard-row:first-child {
-  border-top: none;
+.scoreboard-card .scoreboard-row + .scoreboard-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .scoreboard-card .scoreboard-team {
