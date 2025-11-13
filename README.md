@@ -1,7 +1,5 @@
 # MMM-ScoresAndStandings
 
-A polished multi-league scoreboard for [MagicMirror²](https://magicmirror.builders) with configurable layouts, team highlighting, and built-in assets support. Scoreboards for MLB, NHL, NFL, and NBA rotate automatically so you never miss a final, and NHL divisional standings keep conference races front and center.
-
 ---
 
 ## Table of Contents
