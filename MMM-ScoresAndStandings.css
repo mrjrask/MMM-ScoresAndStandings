@@ -67,6 +67,7 @@
   font-size: calc(1.2em + 1pt);
   font-weight: bold;
   margin: 0;
+  border-bottom: none;
 }
 /*--------------------------------------------------
   Scoreboard Grid
