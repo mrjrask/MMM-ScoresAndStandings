@@ -2060,6 +2060,63 @@
 
       var rows = [];
       var pair = [away, home];
+
+      // First pass: determine possession for each team
+      var possessionCandidates = [];
+      for (var idx = 0; idx < pair.length; idx++) {
+        var entry = pair[idx] || {};
+        var team = entry.team || {};
+
+        var hasPossession = false;
+        var matchCount = 0;
+        var hasIdMatch = false;
+
+        if (possessionLookup) {
+          var entryTokens = collectTokens(entry);
+          var teamTokens = collectTokens(team);
+          var combined = entryTokens.concat(teamTokens);
+
+          // Count matches and check for ID matches (more reliable)
+          for (var ct = 0; ct < combined.length; ct++) {
+            if (possessionLookup[combined[ct]]) {
+              matchCount++;
+              // Check if this is an ID match (IDs are more reliable)
+              if (team.id && String(team.id).toLowerCase() === combined[ct]) {
+                hasIdMatch = true;
+              }
+            }
+          }
+
+          hasPossession = matchCount > 0;
+        }
+
+        possessionCandidates.push({
+          idx: idx,
+          hasPossession: hasPossession,
+          matchCount: matchCount,
+          hasIdMatch: hasIdMatch
+        });
+      }
+
+      // Ensure only ONE team has possession
+      if (possessionCandidates[0].hasPossession && possessionCandidates[1].hasPossession) {
+        // Both teams matched - pick the one with more matches or ID match
+        if (possessionCandidates[0].hasIdMatch && !possessionCandidates[1].hasIdMatch) {
+          possessionCandidates[1].hasPossession = false;
+        } else if (possessionCandidates[1].hasIdMatch && !possessionCandidates[0].hasIdMatch) {
+          possessionCandidates[0].hasPossession = false;
+        } else if (possessionCandidates[0].matchCount > possessionCandidates[1].matchCount) {
+          possessionCandidates[1].hasPossession = false;
+        } else if (possessionCandidates[1].matchCount > possessionCandidates[0].matchCount) {
+          possessionCandidates[0].hasPossession = false;
+        } else {
+          // Still tied - don't show possession on either to avoid incorrect display
+          possessionCandidates[0].hasPossession = false;
+          possessionCandidates[1].hasPossession = false;
+        }
+      }
+
+      // Second pass: build rows with corrected possession
       for (var idx = 0; idx < pair.length; idx++) {
         var entry = pair[idx] || {};
         var team = entry.team || {};
@@ -2113,19 +2170,6 @@
           isLoser = scoreNum < otherScore;
         }
 
-        var hasPossession = false;
-        if (possessionLookup) {
-          var entryTokens = collectTokens(entry);
-          var teamTokens = collectTokens(team);
-          var combined = entryTokens.concat(teamTokens);
-          for (var ct = 0; ct < combined.length; ct++) {
-            if (possessionLookup[combined[ct]]) {
-              hasPossession = true;
-              break;
-            }
-          }
-        }
-
         rows.push({
           type: (idx === 0) ? "away" : "home",
           abbr: abbr,
@@ -2135,7 +2179,7 @@
           metrics: [],
           total: totalScore,
           totalPlaceholder: isPreview ? "" : "—",
-          possessionIcon: hasPossession ? "🏈" : null
+          possessionIcon: possessionCandidates[idx].hasPossession ? "🏈" : null
         });
       }
 
