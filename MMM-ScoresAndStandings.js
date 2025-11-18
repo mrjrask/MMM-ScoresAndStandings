@@ -18,7 +18,24 @@
   };
 
   var NBA_ABBREVIATION_OVERRIDES = {
-    "Utah Jazz": "UTA"
+    "Utah Jazz": "UTA",
+    "Jazz": "UTA",
+    "UTAH": "UTA",
+    "Golden State Warriors": "GS",
+    "Warriors": "GS",
+    "GSW": "GS",
+    "New Orleans Pelicans": "NO",
+    "Pelicans": "NO",
+    "NOP": "NO",
+    "New York Knicks": "NY",
+    "Knicks": "NY",
+    "NYK": "NY",
+    "San Antonio Spurs": "SA",
+    "Spurs": "SA",
+    "SAS": "SA",
+    "Denver Nuggets": "DEN",
+    "Nuggets": "DEN",
+    "DEM": "DEN"
   };
 
   // Scoreboard layout defaults (can be overridden via config)
@@ -2413,6 +2430,10 @@
         abbr = team.abbreviation || team.teamAbbreviation || team.shortDisplayName || team.nickname || name;
       } else if (league === "nba") {
         abbr = NBA_ABBREVIATION_OVERRIDES[name] || team.abbreviation || team.teamAbbreviation || team.shortDisplayName || team.nickname || name;
+        // Check if the abbreviation itself needs to be overridden (e.g., UTAH -> UTA)
+        if (abbr && NBA_ABBREVIATION_OVERRIDES[abbr]) {
+          abbr = NBA_ABBREVIATION_OVERRIDES[abbr];
+        }
       }
 
       if (!abbr && typeof team.abbreviation === "string") abbr = team.abbreviation;
