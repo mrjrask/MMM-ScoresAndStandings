@@ -18,24 +18,109 @@
   };
 
   var NBA_ABBREVIATION_OVERRIDES = {
-    "Utah Jazz": "UTA",
-    "Jazz": "UTA",
-    "UTAH": "UTA",
+    // Atlanta Hawks
+    "Atlanta Hawks": "ATL",
+    "Hawks": "ATL",
+    // Brooklyn Nets
+    "Brooklyn Nets": "BKN",
+    "Nets": "BKN",
+    // Boston Celtics
+    "Boston Celtics": "BOS",
+    "Celtics": "BOS",
+    // Charlotte Hornets
+    "Charlotte Hornets": "CHA",
+    "Hornets": "CHA",
+    // Chicago Bulls
+    "Chicago Bulls": "CHI",
+    "Bulls": "CHI",
+    // Cleveland Cavaliers
+    "Cleveland Cavaliers": "CLE",
+    "Cavaliers": "CLE",
+    "Cavs": "CLE",
+    // Dallas Mavericks
+    "Dallas Mavericks": "DAL",
+    "Mavericks": "DAL",
+    "Mavs": "DAL",
+    // Denver Nuggets
+    "Denver Nuggets": "DEN",
+    "Nuggets": "DEN",
+    "DEM": "DEN",
+    // Detroit Pistons
+    "Detroit Pistons": "DET",
+    "Pistons": "DET",
+    // Golden State Warriors
     "Golden State Warriors": "GS",
     "Warriors": "GS",
     "GSW": "GS",
+    // Houston Rockets
+    "Houston Rockets": "HOU",
+    "Rockets": "HOU",
+    // Indiana Pacers
+    "Indiana Pacers": "IND",
+    "Pacers": "IND",
+    // LA Clippers
+    "LA Clippers": "LAC",
+    "Los Angeles Clippers": "LAC",
+    "Clippers": "LAC",
+    // LA Lakers
+    "LA Lakers": "LAL",
+    "Los Angeles Lakers": "LAL",
+    "Lakers": "LAL",
+    // Memphis Grizzlies
+    "Memphis Grizzlies": "MEM",
+    "Grizzlies": "MEM",
+    // Miami Heat
+    "Miami Heat": "MIA",
+    "Heat": "MIA",
+    // Milwaukee Bucks
+    "Milwaukee Bucks": "MIL",
+    "Bucks": "MIL",
+    // Minnesota Timberwolves
+    "Minnesota Timberwolves": "MIN",
+    "Timberwolves": "MIN",
+    "T-Wolves": "MIN",
+    // New Orleans Pelicans
     "New Orleans Pelicans": "NO",
     "Pelicans": "NO",
     "NOP": "NO",
+    // New York Knicks
     "New York Knicks": "NY",
     "Knicks": "NY",
     "NYK": "NY",
+    // Oklahoma City Thunder
+    "Oklahoma City Thunder": "OKC",
+    "Thunder": "OKC",
+    // Orlando Magic
+    "Orlando Magic": "ORL",
+    "Magic": "ORL",
+    // Philadelphia 76ers
+    "Philadelphia 76ers": "PHI",
+    "76ers": "PHI",
+    "Sixers": "PHI",
+    // Phoenix Suns
+    "Phoenix Suns": "PHX",
+    "Suns": "PHX",
+    // Portland Trail Blazers
+    "Portland Trail Blazers": "POR",
+    "Trail Blazers": "POR",
+    "Blazers": "POR",
+    // Sacramento Kings
+    "Sacramento Kings": "SAC",
+    "Kings": "SAC",
+    // San Antonio Spurs
     "San Antonio Spurs": "SA",
     "Spurs": "SA",
     "SAS": "SA",
-    "Denver Nuggets": "DEN",
-    "Nuggets": "DEN",
-    "DEM": "DEN"
+    // Toronto Raptors
+    "Toronto Raptors": "TOR",
+    "Raptors": "TOR",
+    // Utah Jazz
+    "Utah Jazz": "UTA",
+    "Jazz": "UTA",
+    "UTAH": "UTA",
+    // Washington Wizards
+    "Washington Wizards": "WAS",
+    "Wizards": "WAS"
   };
 
   // Scoreboard layout defaults (can be overridden via config)
