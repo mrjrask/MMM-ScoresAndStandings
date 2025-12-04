@@ -176,7 +176,9 @@
     },
 
     getScripts: function () {
-      return ["https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"];
+      // MagicMirror already provides moment-timezone globally; avoid loading our own copy to
+      // prevent clobbering other modules (e.g., the Calendar module relies on moment.tz).
+      return [];
     },
 
     getStyles: function () {
