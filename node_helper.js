@@ -68,8 +68,18 @@ module.exports = NodeHelper.create({
       const json = await res.json();
       const games = (json.dates && json.dates[0] && json.dates[0].games) || [];
 
+      let extras = null;
+      try {
+        const standings = await this._fetchMlbStandings();
+        if (standings && Array.isArray(standings.pages) && standings.pages.length > 0) {
+          extras = { standings };
+        }
+      } catch (standingsErr) {
+        console.error("🚨 MLB standings fetch failed:", standingsErr);
+      }
+
       console.log(`⚾️ Sending ${games.length} MLB games to front-end.`);
-      this._notifyGames("mlb", games);
+      this._notifyGames("mlb", games, extras);
     } catch (e) {
       console.error("🚨 MLB fetchGames failed:", e);
     }
@@ -624,7 +634,7 @@ module.exports = NodeHelper.create({
     }
     if (!updated && json && json.lastUpdated) updated = json.lastUpdated;
 
-    return { pages, updated };
+    return { pages, updated, league: "nhl", normalized: true };
   },
 
   _hydrateNhlGame(game) {
@@ -1153,8 +1163,18 @@ module.exports = NodeHelper.create({
         return 0;
       });
 
+      let extras = null;
+      try {
+        const standings = await this._fetchNbaStandings();
+        if (standings && Array.isArray(standings.pages) && standings.pages.length > 0) {
+          extras = { standings };
+        }
+      } catch (standingsErr) {
+        console.error("🚨 NBA standings fetch failed:", standingsErr);
+      }
+
       console.log(`🏀 Sending ${events.length} NBA games for ${dateIso} to front-end.`);
-      this._notifyGames("nba", events);
+      this._notifyGames("nba", events, extras);
     } catch (e) {
       console.error("🚨 NBA fetchGames failed:", e);
     }
@@ -1223,11 +1243,229 @@ module.exports = NodeHelper.create({
       const byeList = Array.from(byeTeams.values());
       byeList.sort((a, b) => a.abbreviation.localeCompare(b.abbreviation));
 
+      let extras = { teamsOnBye: byeList };
+      try {
+        const standings = await this._fetchNflStandings();
+        if (standings && Array.isArray(standings.pages) && standings.pages.length > 0) {
+          extras.standings = standings;
+        }
+      } catch (standingsErr) {
+        console.error("🚨 NFL standings fetch failed:", standingsErr);
+      }
+
       console.log(`🏈 Sending ${games.length} NFL games (${startIso} → ${endIso}) to front-end.${byeList.length ? ` ${byeList.length} teams on bye.` : ""}`);
-      this._notifyGames("nfl", games, { teamsOnBye: byeList });
+      this._notifyGames("nfl", games, extras);
     } catch (e) {
       console.error("🚨 NFL fetchGames failed:", e);
     }
+  },
+
+  async _fetchMlbStandings() {
+    const { dateIso } = this._getTargetDate();
+    const season = new Date(dateIso).getFullYear();
+    const url = `https://statsapi.mlb.com/api/v1/standings?leagueId=103,104&season=${season}&standingsTypes=regularSeason`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const json = await res.json();
+    const records = Array.isArray(json.records) ? json.records : [];
+    const byLeague = new Map();
+
+    records.forEach((record) => {
+      if (!record || !record.division || !record.teamRecords) return;
+      const leagueName = (record.league && (record.league.nameShort || record.league.name)) || "";
+      if (!leagueName) return;
+      const divisionName = record.division && (record.division.nameShort || record.division.name || record.division.id);
+      const divisionKey = divisionName || "";
+      if (!divisionKey) return;
+
+      const leagueKey = leagueName.toUpperCase().indexOf("NATIONAL") >= 0 ? "nl" : "al";
+      if (!byLeague.has(leagueKey)) byLeague.set(leagueKey, []);
+
+      const teams = (record.teamRecords || []).map((teamRecord) => {
+        const team = teamRecord.team || {};
+        const abbr = (team.abbreviation || team.teamAbbrev || team.teamCode || "").toUpperCase();
+        return {
+          abbr,
+          name: team.name || team.teamName || team.clubName || abbr,
+          wins: Number(teamRecord.wins) || 0,
+          losses: Number(teamRecord.losses) || 0,
+          gamesBack: teamRecord.gamesBack === "-" ? "—" : (teamRecord.gamesBack || "—"),
+          winPct: Number(teamRecord.winningPercentage || teamRecord.winPct || 0),
+          streak: (teamRecord.streak && teamRecord.streak.streakCode) || ""
+        };
+      });
+
+      teams.sort((a, b) => b.winPct - a.winPct || b.wins - a.wins);
+
+      byLeague.get(leagueKey).push({
+        name: divisionName,
+        teams
+      });
+    });
+
+    const pages = [];
+    if (byLeague.has("al")) pages.push({ key: "al", title: "American League", divisions: byLeague.get("al") });
+    if (byLeague.has("nl")) pages.push({ key: "nl", title: "National League", divisions: byLeague.get("nl") });
+
+    return { league: "mlb", pages, updated: json.lastUpdated || null, normalized: true };
+  },
+
+  async _fetchNbaStandings() {
+    const cdnUrl = "https://cdn.nba.com/static/json/liveData/standings/league.json";
+    try {
+      return await this._fetchNbaStandingsFromCdn(cdnUrl);
+    } catch (cdnErr) {
+      console.warn("⚠️ NBA CDN standings failed, attempting ESPN fallback:", cdnErr.message || cdnErr);
+    }
+
+    return this._fetchNbaStandingsFromEspn();
+  },
+
+  _normalizeNbaTeam(team = {}) {
+    const abbr = (team.teamTricode || team.tricode || team.teamAbbreviation || team.abbreviation || "").toUpperCase();
+    const name = team.teamName || team.fullName || team.displayName || team.name || abbr;
+    const gbRaw = team.gamesBehind || team.gamesBack || team.gamesBackNumeric || "";
+    const gamesBack = (gbRaw === 0 || gbRaw === "0") ? "—" : gbRaw;
+    return {
+      abbr,
+      name,
+      wins: Number(team.win) || Number(team.wins) || 0,
+      losses: Number(team.loss) || Number(team.losses) || 0,
+      winPct: Number(team.winPct) || Number(team.winPercent) || Number(team.winPercentage) || 0,
+      gamesBack,
+      streak: team.streakText || team.streak || ""
+    };
+  },
+
+  async _fetchNbaStandingsFromCdn(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const standard = json && json.league && json.league.standard;
+    if (!standard || !standard.conferences) throw new Error("Malformed NBA CDN payload");
+
+    const buildConference = (confKey, title) => {
+      const conf = standard.conferences && standard.conferences[confKey];
+      const teams = conf && Array.isArray(conf.teams) ? conf.teams : [];
+      const mapped = teams.map((team) => this._normalizeNbaTeam(team));
+      mapped.sort((a, b) => b.winPct - a.winPct || b.wins - a.wins);
+      return { key: confKey, title, divisions: [ { name: title, teams: mapped } ] };
+    };
+
+    const pages = [];
+    pages.push(buildConference("east", "Eastern Conference"));
+    pages.push(buildConference("west", "Western Conference"));
+
+    return { league: "nba", pages, updated: standard.seasonYear || null, normalized: true };
+  },
+
+  async _fetchNbaStandingsFromEspn() {
+    const url = "https://site.web.api.espn.com/apis/v2/sports/basketball/nba/standings";
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const groups = Array.isArray(json.children) ? json.children : [];
+
+    const pages = [];
+
+    groups.forEach((group) => {
+      const name = group.name || group.abbreviation || group.id;
+      const entries = (group.standings && group.standings.entries) || [];
+      const teams = entries.map((entry) => {
+        const team = entry.team || {};
+        const stats = Array.isArray(entry.stats) ? entry.stats : [];
+        const statValue = (abbr) => {
+          const stat = stats.find((s) => s.abbreviation === abbr || s.name === abbr);
+          return stat ? stat.value || stat.displayValue || 0 : 0;
+        };
+
+        return {
+          abbr: (team.abbreviation || team.shortDisplayName || "").toUpperCase(),
+          name: team.displayName || team.name || team.shortDisplayName || team.location || "",
+          wins: Number(statValue("wins")) || 0,
+          losses: Number(statValue("losses")) || 0,
+          winPct: Number(statValue("winPercent")) || 0,
+          gamesBack: statValue("gamesBehind") || "",
+          streak: statValue("streak") || ""
+        };
+      });
+
+      teams.sort((a, b) => b.winPct - a.winPct || b.wins - a.wins);
+      pages.push({ key: name, title: `${name} Conference`, divisions: [ { name: `${name} Conference`, teams } ] });
+    });
+
+    return { league: "nba", pages, updated: json.season && json.season.year, normalized: true };
+  },
+
+  async _fetchNflStandings() {
+    const url = "https://raw.githubusercontent.com/nflverse/nfldata/master/data/standings.csv";
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const csvText = await res.text();
+
+    const lines = csvText.split(/\r?\n/);
+    const header = lines.shift();
+    if (!header) return null;
+    const columns = header.split(",");
+    const idx = (name) => columns.indexOf(name);
+    const seasonIdx = idx("season");
+    const divisionIdx = idx("division");
+    const teamIdx = idx("team");
+    const winsIdx = idx("wins");
+    const lossesIdx = idx("losses");
+    const tiesIdx = idx("ties");
+    const pctIdx = idx("pct");
+
+    const latestByTeam = new Map();
+
+    lines.forEach((line) => {
+      if (!line.trim()) return;
+      const parts = line.split(",");
+      const season = Number(parts[seasonIdx]);
+      const team = parts[teamIdx];
+      const division = parts[divisionIdx];
+      if (!team || !division || !Number.isFinite(season)) return;
+
+      const existing = latestByTeam.get(team);
+      if (existing && existing.season > season) return;
+
+      latestByTeam.set(team, {
+        season,
+        division,
+        abbr: team.toUpperCase(),
+        name: team.toUpperCase(),
+        wins: Number(parts[winsIdx]) || 0,
+        losses: Number(parts[lossesIdx]) || 0,
+        ties: Number(parts[tiesIdx]) || 0,
+        winPct: Number(parts[pctIdx]) || 0
+      });
+    });
+
+    const divisions = new Map();
+    latestByTeam.forEach((team) => {
+      const list = divisions.get(team.division) || [];
+      list.push(team);
+      divisions.set(team.division, list);
+    });
+
+    const buildConference = (name) => {
+      const confDivisions = [];
+      divisions.forEach((teams, divisionName) => {
+        if (!divisionName || divisionName.indexOf(name) !== 0) return;
+        teams.sort((a, b) => b.winPct - a.winPct || b.wins - a.wins);
+        confDivisions.push({ name: divisionName, teams });
+      });
+      return confDivisions;
+    };
+
+    const pages = [];
+    const afc = buildConference("AFC");
+    if (afc.length > 0) pages.push({ key: "afc", title: "AFC", divisions: afc });
+    const nfc = buildConference("NFC");
+    if (nfc.length > 0) pages.push({ key: "nfc", title: "NFC", divisions: nfc });
+
+    return { league: "nfl", pages, updated: null, normalized: true };
   },
 
   _firstDate(...values) {

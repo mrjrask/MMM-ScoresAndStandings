@@ -951,10 +951,19 @@
           if (payload && typeof payload === "object" && !Array.isArray(payload)) {
             league = this._normalizeLeagueKey(payload.league);
             if (Array.isArray(payload.games)) games = payload.games;
+
+            var extrasPayload = {};
+            var reservedKeys = { league: true, games: true };
+            Object.keys(payload).forEach(function (key) {
+              if (reservedKeys[key]) return;
+              extrasPayload[key] = payload[key];
+            });
+
             if (Object.prototype.hasOwnProperty.call(payload, "teamsOnBye")) {
-              extras = extras || {};
-              extras.teamsOnBye = Array.isArray(payload.teamsOnBye) ? payload.teamsOnBye : [];
+              extrasPayload.teamsOnBye = Array.isArray(payload.teamsOnBye) ? payload.teamsOnBye : [];
             }
+
+            if (Object.keys(extrasPayload).length > 0) extras = extrasPayload;
           } else if (Array.isArray(payload)) {
             games = payload;
           }
@@ -1207,9 +1216,10 @@
     },
 
     _buildStandingsPage: function (pageIndex) {
-      if (!this._isStandingsEnabledForLeague("nhl")) return null;
+      var league = this._getLeague();
+      if (!this._isStandingsEnabledForLeague(league)) return null;
 
-      var data = this._extractStandingsData(this.currentExtras);
+      var data = this._extractStandingsData(this.currentExtras, league);
       if (!data || !Array.isArray(data.pages) || data.pages.length === 0) return null;
       if (pageIndex < 0 || pageIndex >= data.pages.length) return null;
 
@@ -1253,15 +1263,9 @@
 
         var headerRow = document.createElement("div");
         headerRow.className = "standings-row standings-row-header";
-
-        var headers = [
-          { text: "TEAM", cls: "team" },
-          { text: "GP", cls: "gp" },
-          { text: "W", cls: "w" },
-          { text: "L", cls: "l" },
-          { text: "OT", cls: "ot" },
-          { text: "PTS", cls: "pts" }
-        ];
+        var layout = this._standingsLayoutForLeague(league, data);
+        var statMap = layout.stats;
+        var headers = layout.headers;
 
         for (var h = 0; h < headers.length; h++) {
           var header = document.createElement("div");
@@ -1306,20 +1310,13 @@
           teamCell.appendChild(teamWrap);
           row.appendChild(teamCell);
 
-          var statMap = [
-            { key: "gamesPlayed", cls: "gp" },
-            { key: "wins", cls: "w" },
-            { key: "losses", cls: "l" },
-            { key: "ot", cls: "ot" },
-            { key: "points", cls: "pts" }
-          ];
-
           for (var s = 0; s < statMap.length; s++) {
             var map = statMap[s];
             var value = (team && Object.prototype.hasOwnProperty.call(team, map.key)) ? team[map.key] : null;
+            var formatted = (typeof map.format === "function") ? map.format(value, team) : value;
             var cell = document.createElement("div");
             cell.className = "standings-cell standings-cell-" + map.cls;
-            cell.textContent = (value == null || value === "") ? "-" : value;
+            cell.textContent = (formatted == null || formatted === "") ? "-" : formatted;
             row.appendChild(cell);
           }
 
@@ -1340,14 +1337,15 @@
 
     _countStandingsPages: function (league) {
       if (!this._isStandingsEnabledForLeague(league)) return 0;
-      var data = this._extractStandingsData(this.currentExtras);
+      var data = this._extractStandingsData(this.currentExtras, league);
       if (!data || !Array.isArray(data.pages)) return 0;
       return data.pages.length;
     },
 
     _hasStandingsContent: function () {
-      if (!this._isStandingsEnabledForLeague(this._getLeague())) return false;
-      var data = this._extractStandingsData(this.currentExtras);
+      var league = this._getLeague();
+      if (!this._isStandingsEnabledForLeague(league)) return false;
+      var data = this._extractStandingsData(this.currentExtras, league);
       if (!data || !Array.isArray(data.pages)) return false;
       for (var i = 0; i < data.pages.length; i++) {
         var page = data.pages[i];
@@ -1356,13 +1354,17 @@
       return false;
     },
 
-    _extractStandingsData: function (extras) {
-      if (!this._isStandingsEnabledForLeague("nhl")) return null;
-
+    _extractStandingsData: function (extras, league) {
       var store = extras || this.currentExtras;
       if (!store || typeof store !== "object") return null;
       var standings = store.standings;
       if (!standings || typeof standings !== "object") return null;
+
+      var normalized = standings.normalized ? standings : null;
+      if (normalized) return normalized;
+
+      // Backwards compatibility for NHL standings payloads
+      if (!this._isStandingsEnabledForLeague("nhl")) return null;
 
       var rawPages = Array.isArray(standings.pages) ? standings.pages : [];
       var pages = [];
@@ -1434,25 +1436,86 @@
         }
       }
 
-      return { pages: pages, updated: updated };
+      return { pages: pages, updated: updated, normalized: true, league: "nhl" };
     },
 
     _isStandingsEnabledForLeague: function (league) {
-      if (league !== "nhl") return false;
+      if (!league) league = this._getLeague();
+      if (league === "nhl") {
+        var cfg = this.config || {};
+        if (!cfg || typeof cfg !== "object") return true;
 
-      var cfg = this.config || {};
-      if (!cfg || typeof cfg !== "object") return true;
+        var value = cfg.showNhlStandings;
+        if (value == null) return true;
 
-      var value = cfg.showNhlStandings;
-      if (value == null) return true;
+        if (typeof value === "string") {
+          var normalized = value.trim().toLowerCase();
+          if (normalized === "false" || normalized === "0" || normalized === "no" || normalized === "off") return false;
+          if (normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on") return true;
+        }
 
-      if (typeof value === "string") {
-        var normalized = value.trim().toLowerCase();
-        if (normalized === "false" || normalized === "0" || normalized === "no" || normalized === "off") return false;
-        if (normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on") return true;
+        return !!value;
       }
 
-      return !!value;
+      return true;
+    },
+
+    _standingsLayoutForLeague: function (league, data) {
+      var formatPct = function (value) {
+        if (value == null || value === "") return null;
+        var num = Number(value);
+        if (!isFinite(num)) return value;
+        var pct = Math.round(num * 1000) / 1000;
+        var str = pct.toFixed(3);
+        if (str.indexOf("0.") === 0) str = str.substring(1);
+        return str;
+      };
+
+      var layout = {
+        headers: [ { text: "TEAM", cls: "team" } ],
+        stats: []
+      };
+
+      var leagueKey = league || (data && data.league) || this._getLeague();
+
+      if (leagueKey === "nba") {
+        layout.stats = [
+          { key: "wins", cls: "w", label: "W" },
+          { key: "losses", cls: "l", label: "L" },
+          { key: "winPct", cls: "pct", label: "PCT", format: formatPct },
+          { key: "gamesBack", cls: "gb", label: "GB" },
+          { key: "streak", cls: "strk", label: "STRK" }
+        ];
+      } else if (leagueKey === "nfl") {
+        layout.stats = [
+          { key: "wins", cls: "w", label: "W" },
+          { key: "losses", cls: "l", label: "L" },
+          { key: "ties", cls: "t", label: "T" },
+          { key: "winPct", cls: "pct", label: "PCT", format: formatPct }
+        ];
+      } else if (leagueKey === "mlb") {
+        layout.stats = [
+          { key: "wins", cls: "w", label: "W" },
+          { key: "losses", cls: "l", label: "L" },
+          { key: "winPct", cls: "pct", label: "PCT", format: formatPct },
+          { key: "gamesBack", cls: "gb", label: "GB" },
+          { key: "streak", cls: "strk", label: "STRK" }
+        ];
+      } else {
+        layout.stats = [
+          { key: "gamesPlayed", cls: "gp", label: "GP" },
+          { key: "wins", cls: "w", label: "W" },
+          { key: "losses", cls: "l", label: "L" },
+          { key: "ot", cls: "ot", label: "OT" },
+          { key: "points", cls: "pts", label: "PTS" }
+        ];
+      }
+
+      layout.headers = [ { text: "TEAM", cls: "team" } ].concat(layout.stats.map(function (s) {
+        return { text: s.label, cls: s.cls };
+      }));
+
+      return layout;
     },
 
     _formatStandingsUpdated: function (value) {

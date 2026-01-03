@@ -483,6 +483,12 @@
   filter: brightness(1.2);
 }
 
+.scoreboard-card .scoreboard-team-logo[src*="/WSH.png"] {
+  height: auto;
+  width: calc(var(--scoreboard-team-font) * 1.2);
+  max-height: calc(var(--scoreboard-team-font) * 1.1088);
+}
+
 .scoreboard-card .scoreboard-team-abbr {
   font-size: calc(var(--scoreboard-team-font) + 1pt);
   letter-spacing: 0.12em;
