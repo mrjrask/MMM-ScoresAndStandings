@@ -493,6 +493,12 @@
   max-height: calc(var(--scoreboard-team-font) * 1.1088);
 }
 
+.scoreboard-card.league-nhl .scoreboard-team-logo[src*="/WSH.png"] {
+  height: calc(var(--scoreboard-team-font) * 0.9856);
+  width: auto;
+  max-height: calc(var(--scoreboard-team-font) * 1.1088);
+}
+
 .scoreboard-card .scoreboard-team-abbr {
   font-size: calc(var(--scoreboard-team-font) + 1pt);
   letter-spacing: 0.12em;
