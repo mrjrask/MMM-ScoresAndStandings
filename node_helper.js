@@ -1430,6 +1430,13 @@ module.exports = NodeHelper.create({
       const division = parts[divisionIdx];
       if (!team || !division || !Number.isFinite(season)) return;
 
+      const wins = Number(parts[winsIdx]) || 0;
+      const losses = Number(parts[lossesIdx]) || 0;
+      const ties = Number(parts[tiesIdx]) || 0;
+      const games = wins + losses + ties;
+      const computedPct = games > 0 ? (wins + (ties * 0.5)) / games : 0;
+      const pct = Number.isFinite(computedPct) ? computedPct : 0;
+
       const existing = latestByTeam.get(team);
       if (existing && existing.season > season) return;
 
@@ -1438,10 +1445,10 @@ module.exports = NodeHelper.create({
         division,
         abbr: team.toUpperCase(),
         name: team.toUpperCase(),
-        wins: Number(parts[winsIdx]) || 0,
-        losses: Number(parts[lossesIdx]) || 0,
-        ties: Number(parts[tiesIdx]) || 0,
-        winPct: Number(parts[pctIdx]) || 0
+        wins,
+        losses,
+        ties,
+        winPct: pct
       });
     });
 
