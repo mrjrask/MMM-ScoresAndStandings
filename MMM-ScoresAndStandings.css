@@ -227,6 +227,11 @@
   overflow: hidden;
 }
 
+.standings-grid[data-league="nfl"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+}
+
 .standings-division {
   display: flex;
   flex-direction: column;

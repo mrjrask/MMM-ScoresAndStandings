@@ -1228,6 +1228,7 @@
 
       var wrapper = document.createElement("div");
       wrapper.className = "standings-page";
+      wrapper.setAttribute("data-league", league);
       if (page.key) wrapper.setAttribute("data-page", page.key);
 
       var titleText = page.title || "";
@@ -1240,6 +1241,7 @@
 
       var grid = document.createElement("div");
       grid.className = "standings-grid";
+      grid.setAttribute("data-league", league);
       wrapper.appendChild(grid);
 
       for (var d = 0; d < page.divisions.length; d++) {
