@@ -20,6 +20,9 @@
   --scoreboard-metric-width-base:     56px;
   --scoreboard-placeholder-height-base: calc(184px * 0.9);
 
+  /* Standings */
+  --standings-division-min-width-base: 260px;
+
   --scoreboard-card-width:    calc(var(--scoreboard-card-width-base) * var(--box-scale));
   --scoreboard-height-scale:  0.9;
   --scoreboard-pad-block:     calc(var(--scoreboard-pad-block-base) * var(--box-scale) * var(--scoreboard-height-scale));
@@ -32,6 +35,7 @@
   --scoreboard-metric-width:  calc(var(--scoreboard-metric-width-base) * var(--box-scale));
   --scoreboard-placeholder-height: calc(var(--scoreboard-placeholder-height-base) * var(--box-scale) * var(--scoreboard-height-scale));
   --scoreboard-font-family: 'Times Square', Arial, sans-serif;
+  --standings-division-min-width: calc(var(--standings-division-min-width-base) * var(--box-scale));
 
   --scoreboard-border-color: #4c4c4c;
   --scoreboard-border-live:  #c3941a;
@@ -222,13 +226,13 @@
 .standings-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--standings-division-min-width), 1fr));
   gap: var(--matrix-gap);
   overflow: hidden;
 }
 
 .standings-grid[data-league="nfl"] {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(var(--standings-division-min-width), 1fr));
   grid-auto-rows: 1fr;
 }
 
@@ -259,41 +263,30 @@
   grid-template-rows: auto repeat(var(--standings-team-count, 8), 1fr);
   gap: calc(var(--matrix-gap) * 0.35);
   align-content: stretch;
+  --standings-team-col-fr: 1.6fr;
+  --standings-stat-col-fr: 1fr;
+  --standings-font-scale: 1;
+  --standings-abbr-scale: 1;
 }
 
 .standings-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) repeat(var(--standings-stat-count, 5), minmax(0, 0.9fr));
+  grid-template-columns: minmax(0, var(--standings-team-col-fr, 1.6fr)) repeat(var(--standings-stat-count, 5), minmax(0, var(--standings-stat-col-fr, 1fr)));
   align-items: center;
   gap: calc(var(--scoreboard-gap) * 0.45);
   padding: calc(var(--scoreboard-pad-block) * 0.25) 0;
 }
 
-.standings-page[data-league="nba"] .standings-row {
-  grid-template-columns: minmax(0, 1.8fr) repeat(var(--standings-stat-count, 5), minmax(0, 1.05fr));
-  gap: calc(var(--scoreboard-gap) * 0.6);
-}
-
-.standings-page[data-league="nfl"] .standings-row {
-  grid-template-columns:
-    minmax(0, 1.6fr)
-    minmax(0, 0.9fr)
-    minmax(0, 0.9fr)
-    minmax(0, 0.9fr)
-    minmax(0, 1.05fr);
-  gap: calc(var(--scoreboard-gap) * 0.6);
-}
-
 .standings-row-header {
   color: var(--scoreboard-muted);
-  font-size: calc(var(--scoreboard-label-font) * 0.95 + 1pt);
+  font-size: calc((var(--scoreboard-label-font) * 0.95 + 1pt) * var(--standings-font-scale));
   letter-spacing: 0.2em;
   text-transform: uppercase;
   font-weight: 600;
 }
 
 .standings-row-team {
-  font-size: calc(var(--scoreboard-label-font) * 1.05 + 1pt);
+  font-size: calc((var(--scoreboard-label-font) * 1.05 + 1pt) * var(--standings-font-scale));
   color: var(--scoreboard-text);
 }
 
@@ -306,23 +299,6 @@
 .standings-row.highlighted .standings-cell-pts {
   color: var(--scoreboard-value-color);
   font-weight: 700;
-}
-
-.standings-page[data-league="nba"] .standings-row-team,
-.standings-page[data-league="nba"] .standings-cell-w,
-.standings-page[data-league="nba"] .standings-cell-l,
-.standings-page[data-league="nba"] .standings-cell-pct,
-.standings-page[data-league="nba"] .standings-cell-gb,
-.standings-page[data-league="nba"] .standings-cell-strk,
-.standings-page[data-league="nba"] .standings-team-abbr {
-  font-size: calc(var(--scoreboard-label-font) * 1.05 + 5pt);
-}
-
-.standings-page[data-league="nfl"] .standings-cell-w,
-.standings-page[data-league="nfl"] .standings-cell-l,
-.standings-page[data-league="nfl"] .standings-cell-t,
-.standings-page[data-league="nfl"] .standings-cell-pct {
-  font-size: calc(var(--scoreboard-label-font) * 1.05 + 5pt);
 }
 
 .standings-cell {
@@ -349,7 +325,7 @@
 }
 
 .standings-team-abbr {
-  font-size: calc(var(--scoreboard-team-font) * 0.85 + 1pt);
+  font-size: calc((var(--scoreboard-team-font) * 0.85 + 1pt) * var(--standings-abbr-scale, var(--standings-font-scale)));
   letter-spacing: 0.26em;
   font-weight: 600;
 }
@@ -360,7 +336,7 @@
 .standings-cell-ot,
 .standings-cell-pts {
   text-align: right;
-  font-size: calc(var(--scoreboard-label-font) * 1.05 + 1pt);
+  font-size: calc((var(--scoreboard-label-font) * 1.05 + 1pt) * var(--standings-font-scale));
 }
 
 .standings-cell-pts {
