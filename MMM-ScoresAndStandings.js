@@ -1266,6 +1266,18 @@
         var layout = this._standingsLayoutForLeague(league, data);
         var statMap = layout.stats;
         table.style.setProperty("--standings-stat-count", statMap.length);
+        if (layout.teamColumnFr) {
+          table.style.setProperty("--standings-team-col-fr", layout.teamColumnFr + "fr");
+        }
+        if (layout.statColumnFr) {
+          table.style.setProperty("--standings-stat-col-fr", layout.statColumnFr + "fr");
+        }
+        if (layout.fontScale) {
+          table.style.setProperty("--standings-font-scale", layout.fontScale);
+        }
+        if (layout.abbrScale) {
+          table.style.setProperty("--standings-abbr-scale", layout.abbrScale);
+        }
         var headerRow = document.createElement("div");
         headerRow.className = "standings-row standings-row-header";
         var headers = layout.headers;
@@ -1502,7 +1514,11 @@
 
       var layout = {
         headers: [ { text: "TEAM", cls: "team" } ],
-        stats: []
+        stats: [],
+        teamColumnFr: 1.6,
+        statColumnFr: 1,
+        fontScale: 1,
+        abbrScale: 1
       };
 
       var leagueKey = league || (data && data.league) || this._getLeague();
