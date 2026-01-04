@@ -303,6 +303,13 @@
   font-size: calc(var(--scoreboard-label-font) * 1.05 + 5pt);
 }
 
+.standings-page[data-league="nfl"] .standings-cell-w,
+.standings-page[data-league="nfl"] .standings-cell-l,
+.standings-page[data-league="nfl"] .standings-cell-t,
+.standings-page[data-league="nfl"] .standings-cell-pct {
+  font-size: calc(var(--scoreboard-label-font) * 1.05 + 5pt);
+}
+
 .standings-cell {
   text-transform: uppercase;
   letter-spacing: 0.14em;
