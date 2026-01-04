@@ -293,6 +293,16 @@
   font-weight: 700;
 }
 
+.standings-page[data-league="nba"] .standings-row-team,
+.standings-page[data-league="nba"] .standings-cell-w,
+.standings-page[data-league="nba"] .standings-cell-l,
+.standings-page[data-league="nba"] .standings-cell-pct,
+.standings-page[data-league="nba"] .standings-cell-gb,
+.standings-page[data-league="nba"] .standings-cell-strk,
+.standings-page[data-league="nba"] .standings-team-abbr {
+  font-size: calc(var(--scoreboard-label-font) * 1.05 + 5pt);
+}
+
 .standings-cell {
   text-transform: uppercase;
   letter-spacing: 0.14em;

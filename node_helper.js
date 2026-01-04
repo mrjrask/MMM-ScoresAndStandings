@@ -1370,7 +1370,9 @@ module.exports = NodeHelper.create({
     const pages = [];
 
     groups.forEach((group) => {
-      const name = group.name || group.abbreviation || group.id;
+      const rawName = (group.name || group.abbreviation || group.id || "").trim();
+      const baseName = rawName.replace(/\s*conference$/i, "").trim();
+      const name = baseName || rawName || "";
       const entries = (group.standings && group.standings.entries) || [];
       const teams = entries.map((entry) => {
         const team = entry.team || {};
@@ -1392,7 +1394,8 @@ module.exports = NodeHelper.create({
       });
 
       teams.sort((a, b) => b.winPct - a.winPct || b.wins - a.wins);
-      pages.push({ key: name, title: `${name} Conference`, divisions: [ { name: `${name} Conference`, teams } ] });
+      const conferenceTitle = `${name} Conference`;
+      pages.push({ key: name || conferenceTitle, title: conferenceTitle, divisions: [ { name: conferenceTitle, teams } ] });
     });
 
     return { league: "nba", pages, updated: json.season && json.season.year, normalized: true };
