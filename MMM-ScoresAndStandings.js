@@ -1261,10 +1261,11 @@
         table.style.setProperty("--standings-team-count", division.teams.length);
         divisionEl.appendChild(table);
 
-        var headerRow = document.createElement("div");
-        headerRow.className = "standings-row standings-row-header";
         var layout = this._standingsLayoutForLeague(league, data);
         var statMap = layout.stats;
+        table.style.setProperty("--standings-stat-count", statMap.length);
+        var headerRow = document.createElement("div");
+        headerRow.className = "standings-row standings-row-header";
         var headers = layout.headers;
 
         for (var h = 0; h < headers.length; h++) {
@@ -1471,6 +1472,32 @@
         return str;
       };
 
+      var formatNbaStreak = function (value) {
+        if (value == null) return value;
+
+        var normalize = function (val) {
+          if (typeof val === "string") {
+            var trimmed = val.trim();
+            if (!trimmed) return val;
+            if (/^[WL]/i.test(trimmed)) return trimmed.toUpperCase();
+            var parsed = Number(trimmed);
+            if (isFinite(parsed)) return parsed;
+            return trimmed;
+          }
+          return val;
+        };
+
+        var normalized = normalize(value);
+        var num = (typeof normalized === "number") ? normalized : Number(normalized);
+
+        if (isFinite(num) && num !== 0) {
+          var prefix = num > 0 ? "W" : "L";
+          return prefix + Math.abs(num);
+        }
+
+        return (typeof normalized === "string") ? normalized : value;
+      };
+
       var layout = {
         headers: [ { text: "TEAM", cls: "team" } ],
         stats: []
@@ -1484,7 +1511,7 @@
           { key: "losses", cls: "l", label: "L" },
           { key: "winPct", cls: "pct", label: "PCT", format: formatPct },
           { key: "gamesBack", cls: "gb", label: "GB" },
-          { key: "streak", cls: "strk", label: "STRK" }
+          { key: "streak", cls: "strk", label: "STRK", format: formatNbaStreak }
         ];
       } else if (leagueKey === "nfl") {
         layout.stats = [

@@ -69,6 +69,10 @@
   margin: 0;
   border-bottom: none;
 }
+
+.scores-screen {
+  font-family: var(--scoreboard-font-family);
+}
 /*--------------------------------------------------
   Scoreboard Grid
 --------------------------------------------------*/
@@ -218,7 +222,7 @@
 .standings-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: var(--matrix-gap);
   overflow: hidden;
 }
@@ -254,7 +258,7 @@
 
 .standings-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) repeat(5, minmax(0, 0.8fr));
+  grid-template-columns: minmax(0, 1.6fr) repeat(var(--standings-stat-count, 5), minmax(0, 0.9fr));
   align-items: center;
   gap: calc(var(--scoreboard-gap) * 0.45);
   padding: calc(var(--scoreboard-pad-block) * 0.25) 0;
