@@ -269,6 +269,11 @@
   padding: calc(var(--scoreboard-pad-block) * 0.25) 0;
 }
 
+.standings-page[data-league="nba"] .standings-row {
+  grid-template-columns: minmax(0, 1.8fr) repeat(var(--standings-stat-count, 5), minmax(0, 1.05fr));
+  gap: calc(var(--scoreboard-gap) * 0.6);
+}
+
 .standings-row-header {
   color: var(--scoreboard-muted);
   font-size: calc(var(--scoreboard-label-font) * 0.95 + 1pt);
