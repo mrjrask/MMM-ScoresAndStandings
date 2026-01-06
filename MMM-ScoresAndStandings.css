@@ -595,6 +595,14 @@
   flex-wrap: nowrap;
 }
 
+.scoreboard-card.league-nfl .scoreboard-team-record {
+  font-size: calc(var(--scoreboard-status-font) + 1pt);
+  color: var(--scoreboard-muted);
+  margin-left: calc(var(--scoreboard-gap) * 0.45);
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
 .scoreboard-card.league-nfl .scoreboard-header .scoreboard-status,
 .scoreboard-card.league-nfl .scoreboard-row .scoreboard-team {
   justify-self: start;
