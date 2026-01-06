@@ -1754,6 +1754,13 @@
           team.appendChild(possessionEl);
         }
 
+        if (rowData.record) {
+          var recordEl = document.createElement("span");
+          recordEl.className = "scoreboard-team-record";
+          recordEl.textContent = rowData.record;
+          team.appendChild(recordEl);
+        }
+
         if (rowData.highlight) team.classList.add("team-highlight");
 
         if (Object.prototype.hasOwnProperty.call(rowData, "total") || Object.prototype.hasOwnProperty.call(rowData, "totalPlaceholder")) {
@@ -2319,6 +2326,9 @@
         var abbr = this._abbrForTeam(team, league);
         var highlight = this._isHighlighted(abbr);
 
+        var record = null;
+        if (isPreview) record = this._formatNflRecord(entry);
+
         var scoreNum = this._firstNumber(entry.score, entry.points, entry.team && entry.team.score);
 
         var lineScores = Array.isArray(entry.linescores) ? entry.linescores : [];
@@ -2372,6 +2382,7 @@
           logoAbbr: abbr,
           highlight: highlight,
           isLoser: isLoser,
+          record: record,
           metrics: [],
           total: totalScore,
           totalPlaceholder: isPreview ? "" : "—",
@@ -2559,6 +2570,44 @@
       } catch (e) {
         return timeText;
       }
+    },
+
+    _formatNflRecord: function (competitor) {
+      if (!competitor) return null;
+
+      var summary = null;
+      var records = competitor.records;
+
+      if (Array.isArray(records)) {
+        for (var i = 0; i < records.length; i++) {
+          var record = records[i] || {};
+          var candidate = record.summary || record.displayValue || record.overall || null;
+          var recordType = (record.type || record.name || "").toLowerCase();
+          var isOverall = recordType === "total" || recordType === "overall";
+
+          if (candidate && (isOverall || summary == null)) {
+            summary = candidate;
+            if (isOverall) break;
+          }
+        }
+      }
+
+      if (!summary && competitor.record) summary = competitor.record;
+      if (!summary && competitor.team && competitor.team.record) summary = competitor.team.record;
+
+      if (!summary) return null;
+
+      var match = String(summary).match(/(\d+)\s*-\s*(\d+)(?:\s*-\s*(\d+))?/);
+      if (!match) return null;
+
+      var wins = match[1];
+      var losses = match[2];
+      var ties = match[3];
+
+      var parts = [wins, losses];
+      if (ties && ties !== "0") parts.push(ties);
+
+      return "(" + parts.join("-") + ")";
     },
 
     _resolveNflSpecialLiveStatus: function (details) {
